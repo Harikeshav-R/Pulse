@@ -1,3 +1,6 @@
+# Auto-generated from pyproject.toml — do not edit directly
+# Regenerate with: uv pip compile pyproject.toml -o requirements.txt
+
 # Web framework
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
@@ -13,11 +16,11 @@ alembic>=1.13.0
 # Redis
 redis[hiredis]>=5.2.0
 
-# LLM Orchestration (vendor-agnostic via OpenRouter)
-langchain>=0.3.0
+# LLM Orchestration (LangChain v1 + LangGraph v1 via OpenRouter)
+langchain>=1.0.0
 langchain-core>=0.3.0
 langchain-openrouter>=0.1.0
-langgraph>=0.2.0
+langgraph>=1.0.0
 
 # LiveKit + Gemini Live Voice
 livekit>=0.17.0
