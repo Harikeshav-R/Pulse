@@ -1,6 +1,6 @@
 import asyncio
 from collections.abc import AsyncGenerator, Generator
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -19,8 +19,10 @@ def event_loop() -> Generator:
 def mock_db_session() -> AsyncMock:
     """Provide a mocked SQLAlchemy AsyncSession."""
     session = AsyncMock()
-    # Mock commonly used methods
-    session.execute = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = []
+    mock_result.scalars.return_value.first.return_value = None
+    session.execute.return_value = mock_result
     session.commit = AsyncMock()
     session.rollback = AsyncMock()
     session.refresh = AsyncMock()

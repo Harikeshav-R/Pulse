@@ -317,6 +317,36 @@ async def get_patient_list(
     return PatientListResponse(patients=items, total=total, page=(offset // limit) + 1)
 
 
+async def get_patient_symptoms(
+    patient_id: str, status: str | None, db: AsyncSession
+) -> list[dict]:
+    pid = uuid.UUID(patient_id)
+    query = select(SymptomEntry).where(SymptomEntry.patient_id == pid)
+
+    if status == "pending_review":
+        query = query.where(SymptomEntry.crc_reviewed.is_(False))
+
+    query = query.order_by(SymptomEntry.created_at.desc())
+    symptoms = (await db.execute(query)).scalars().all()
+
+    return [
+        {
+            "id": str(s.id),
+            "symptom_text": s.symptom_text,
+            "meddra_pt_term": s.meddra_pt_term,
+            "severity_grade": s.severity_grade,
+            "onset_date": s.onset_date,
+            "is_ongoing": s.is_ongoing,
+            "created_at": s.created_at,
+            "ai_confidence": s.ai_confidence,
+            "crc_reviewed": s.crc_reviewed,
+            "crc_reviewed_by": str(s.crc_reviewed_by) if s.crc_reviewed_by else None,
+            "crc_reviewed_at": s.crc_reviewed_at,
+        }
+        for s in symptoms
+    ]
+
+
 async def review_symptom(
     symptom_id: str, request: SymptomReviewRequest, staff_id: str, db: AsyncSession
 ) -> SymptomReviewResponse:

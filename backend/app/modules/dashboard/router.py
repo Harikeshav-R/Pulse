@@ -10,6 +10,7 @@ from app.modules.dashboard.service import (
     get_trial_overview,
     get_patient_detail,
     get_patient_list,
+    get_patient_symptoms,
     review_symptom,
     get_patient_wearable_summary,
     get_patient_timeline,
@@ -58,6 +59,17 @@ async def list_patients(
 ):
     """List and paginate patients for a given trial."""
     return await get_patient_list(trial_id, limit, offset, db)
+
+
+@router.get("/dashboard/patients/{patient_id}/symptoms")
+async def patient_symptoms(
+    patient_id: str,
+    status: str | None = Query(default=None),
+    staff: dict = Depends(get_current_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get symptoms for a patient, optionally filtering by status (e.g., pending_review)."""
+    return await get_patient_symptoms(patient_id, status, db)
 
 
 @router.post("/dashboard/symptoms/{symptom_id}/review", response_model=SymptomReviewResponse)
