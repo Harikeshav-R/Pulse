@@ -37,9 +37,29 @@ async def check_missed_checkins() -> None:
             session.status = "abandoned"
             logger.info("Marking session %s as abandoned (missed checkin)", session.id)
 
+            recent_sessions = (
+                await db.execute(
+                    select(CheckinSession)
+                    .where(CheckinSession.patient_id == session.patient_id)
+                    .order_by(CheckinSession.started_at.desc())
+                )
+            ).scalars().all()
+
+            consecutive_misses = 0
+            for rs in recent_sessions:
+                # the current session object hasn't been committed, but we updated rs.status in the DB if rs refers to the same object or not
+                if rs.id == session.id or rs.status in ["abandoned", "missed"]:
+                    consecutive_misses += 1
+                elif rs.status == "completed":
+                    break
+
             await event_bus.publish(
                 "checkin.missed",
-                {"patient_id": str(session.patient_id), "session_id": str(session.id)},
+                {
+                    "patient_id": str(session.patient_id),
+                    "session_id": str(session.id),
+                    "consecutive_misses": consecutive_misses,
+                },
             )
 
         await db.commit()
