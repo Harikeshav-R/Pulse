@@ -54,8 +54,8 @@ export const useCohortAEIncidence = (trialId: string | null, days = 30) => {
   return useQuery({
     queryKey: ['cohortAE', trialId, days],
     queryFn: async () => {
-      const response = await apiClient.get('/dashboard/cohort/ae-incidence', {
-        params: { trial_id: trialId, days },
+      const response = await apiClient.get(`/analytics/trial/${trialId}/adverse-events`, {
+        params: { days },
       });
       return response as any;
     },

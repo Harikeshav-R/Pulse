@@ -14,6 +14,7 @@ import {
   LineChart,
   Line
 } from 'recharts'
+import { useTrialOverview, useCohortAEIncidence } from '../hooks/useAlerts'
 import type { ClinicalTrialCard } from '../App'
 import './CohortAnalytics.css'
 
@@ -22,18 +23,6 @@ interface CohortAnalyticsProps {
   onSelectTrial: (id: string) => void
   trials: ClinicalTrialCard[]
 }
-
-const mockSymptomsData = [
-  { name: 'Nausea', grade1: 15, grade2: 10, grade3: 5 },
-  { name: 'Fatigue', grade1: 30, grade2: 12, grade3: 2 },
-  { name: 'Headache', grade1: 20, grade2: 8, grade3: 1 },
-]
-
-const mockRiskData = [
-  { name: 'Low Risk', value: 45, color: '#10b981' }, // emerald
-  { name: 'Medium Risk', value: 20, color: '#f59e0b' }, // amber
-  { name: 'High Risk', value: 5, color: '#ef4444' }, // red
-]
 
 const mockHRTrend = [
   { day: 'Day -14', hr: 72 },
@@ -48,8 +37,10 @@ const mockHRTrend = [
 export function CohortAnalytics({ trialId, onSelectTrial, trials }: CohortAnalyticsProps) {
   const [searchQuery, setSearchQuery] = useState('')
 
+  const { data: overview, isLoading: overviewLoading } = useTrialOverview(trialId);
+  const { data: aeData, isLoading: aeLoading } = useCohortAEIncidence(trialId);
+
   if (!trialId) {
-    // Search View
     const filteredTrials = trials.filter(t => 
       t.trialTitle.toLowerCase().includes(searchQuery.toLowerCase()) || 
       t.trialSubtitle.toLowerCase().includes(searchQuery.toLowerCase())
@@ -89,10 +80,28 @@ export function CohortAnalytics({ trialId, onSelectTrial, trials }: CohortAnalyt
     )
   }
 
-  // Trial Stats View
   const trial = trials.find(t => t.id === trialId)
-
   if (!trial) return <p>Trial not found.</p>
+
+  if (overviewLoading || aeLoading) return <div style={{ padding: 20 }}>Loading analytics...</div>;
+
+  // Process data for charts
+  const riskDistribution = overview?.risk_distribution || { low: 0, medium: 0, high: 0 };
+  const riskChartData = [
+    { name: 'Low Risk', value: riskDistribution.low || 0, color: '#10b981' },
+    { name: 'Medium Risk', value: riskDistribution.medium || 0, color: '#f59e0b' },
+    { name: 'High Risk', value: riskDistribution.high || 0, color: '#ef4444' },
+  ];
+
+  // Process AE data
+  // aeData shape: { "Nausea": { count: 12, by_grade: { 1: 5, 2: 4, 3: 3 } } ... } or something similar.
+  // We need array format for Recharts.
+  const symptomsData = aeData ? Object.entries(aeData).map(([name, stats]: [string, any]) => ({
+    name,
+    grade1: stats.by_grade?.['1'] || 0,
+    grade2: stats.by_grade?.['2'] || 0,
+    grade3: stats.by_grade?.['3'] || 0,
+  })) : [];
 
   return (
     <div className="analytics-stats-view" style={{ '--theme-color': trial.progressColor } as any}>
@@ -111,19 +120,21 @@ export function CohortAnalytics({ trialId, onSelectTrial, trials }: CohortAnalyt
 
       <div className="kpi-grid">
         <div className="kpi-card">
-          <p className="kpi-title">Enrollment Progress</p>
-          <h3 className="kpi-value">{trial.progressPercent}%</h3>
-          <div className="kpi-progress-bar"><div style={{width: `${trial.progressPercent}%`, backgroundColor: trial.progressColor}}></div></div>
+          <p className="kpi-title">Total Enrolled</p>
+          <h3 className="kpi-value">{overview?.total_patients || 0}</h3>
+          <p className="kpi-trend">Across {overview?.total_sites || 0} active sites</p>
         </div>
         <div className="kpi-card">
-          <p className="kpi-title">Patient Check-in Compliance</p>
-          <h3 className="kpi-value">84%</h3>
-          <p className="kpi-trend positive">↑ 2% this week</p>
+          <p className="kpi-title">Check-ins Completed (7d)</p>
+          <h3 className="kpi-value">{overview?.checkins_last_7_days || 0}</h3>
+          <p className="kpi-trend">Total submitted</p>
         </div>
         <div className="kpi-card">
-          <p className="kpi-title">Voice App Adoption</p>
-          <h3 className="kpi-value">32%</h3>
-          <p className="kpi-trend">Target: 30%</p>
+          <p className="kpi-title">Open Alerts</p>
+          <h3 className="kpi-value" style={{ color: overview?.open_alerts?.critical > 0 ? '#ef4444' : 'inherit' }}>
+            {overview?.open_alerts?.critical || 0}
+          </h3>
+          <p className="kpi-trend">Critical alerts pending</p>
         </div>
       </div>
 
@@ -131,7 +142,7 @@ export function CohortAnalytics({ trialId, onSelectTrial, trials }: CohortAnalyt
         <div className="chart-container span-2">
           <h3>Adverse Events Reported (CTCAE Grades)</h3>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={mockSymptomsData}>
+            <BarChart data={symptomsData.length > 0 ? symptomsData : [{ name: 'None', grade1: 0, grade2: 0, grade3: 0 }]}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--muted-border)" />
               <XAxis dataKey="name" tick={{fill: 'var(--secondary-color)'}} />
               <YAxis tick={{fill: 'var(--secondary-color)'}} />
@@ -149,7 +160,7 @@ export function CohortAnalytics({ trialId, onSelectTrial, trials }: CohortAnalyt
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie
-                data={mockRiskData}
+                data={riskChartData}
                 cx="50%"
                 cy="50%"
                 innerRadius={60}
@@ -157,7 +168,7 @@ export function CohortAnalytics({ trialId, onSelectTrial, trials }: CohortAnalyt
                 paddingAngle={5}
                 dataKey="value"
               >
-                {mockRiskData.map((entry, index) => (
+                {riskChartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} stroke="transparent" />
                 ))}
               </Pie>
