@@ -118,7 +118,7 @@ export const useReviewSymptom = () => {
       const response = await apiClient.post(`/dashboard/symptoms/${symptomId}/review`, payload);
       return response;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['patientSymptoms'] });
     },
