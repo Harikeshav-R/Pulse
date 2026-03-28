@@ -26,7 +26,10 @@ def normalize_reading(metric: str, value: float) -> float | None:
     if value < rules["min"] or value > rules["max"]:
         logger.warning(
             "Wearable reading out of range: metric=%s, value=%s (range: %s-%s)",
-            metric, value, rules["min"], rules["max"],
+            metric,
+            value,
+            rules["min"],
+            rules["max"],
         )
         return None
 

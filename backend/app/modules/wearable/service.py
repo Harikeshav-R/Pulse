@@ -9,7 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.wearable import WearableReading, WearableBaseline, WearableAnomaly
 from app.modules.wearable.normalization import normalize_reading
-from app.modules.wearable.anomaly_detection import detect_point_anomaly, detect_trend_anomaly
+from app.modules.wearable.anomaly_detection import (
+    detect_point_anomaly,
+    detect_trend_anomaly,
+    evaluate_contextual_suppression,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +48,13 @@ async def sync_readings(
     await db.flush()
 
     if event_bus:
-        await event_bus.publish("wearable.data_received", {
-            "patient_id": patient_id,
-            "readings_count": accepted,
-        })
+        await event_bus.publish(
+            "wearable.data_received",
+            {
+                "patient_id": patient_id,
+                "readings_count": accepted,
+            },
+        )
 
     logger.info("Accepted %d/%d readings for patient %s", accepted, len(readings), patient_id)
     return {"accepted": accepted, "rejected": len(readings) - accepted}
@@ -65,8 +72,9 @@ async def handle_wearable_data_received(payload: dict) -> None:
 
         # Get current baselines
         baselines_result = await db.execute(
-            select(WearableBaseline)
-            .where(WearableBaseline.patient_id == pid, WearableBaseline.is_current == True)
+            select(WearableBaseline).where(
+                WearableBaseline.patient_id == pid, WearableBaseline.is_current.is_(True)
+            )
         )
         baselines = {b.metric: b for b in baselines_result.scalars().all()}
 
@@ -89,6 +97,13 @@ async def handle_wearable_data_received(payload: dict) -> None:
                 baseline.baseline_stddev,
             )
             if anomaly:
+                suppressed, new_sev = await evaluate_contextual_suppression(
+                    pid, metric, anomaly["severity"], db
+                )
+                if suppressed:
+                    continue
+                anomaly["severity"] = new_sev
+
                 anomaly_record = WearableAnomaly(
                     patient_id=pid,
                     metric=metric,
@@ -102,16 +117,19 @@ async def handle_wearable_data_received(payload: dict) -> None:
                 db.add(anomaly_record)
                 await db.flush()
 
-                await event_bus.publish("anomaly.detected", {
-                    "patient_id": patient_id,
-                    "anomaly_id": str(anomaly_record.id),
-                    "metric": metric,
-                    "anomaly_type": "point_anomaly",
-                    "value": latest.value,
-                    "baseline_mean": baseline.baseline_mean,
-                    "z_score": anomaly["z_score"],
-                    "severity": anomaly["severity"],
-                })
+                await event_bus.publish(
+                    "anomaly.detected",
+                    {
+                        "patient_id": patient_id,
+                        "anomaly_id": str(anomaly_record.id),
+                        "metric": metric,
+                        "anomaly_type": "point_anomaly",
+                        "value": latest.value,
+                        "baseline_mean": baseline.baseline_mean,
+                        "z_score": anomaly["z_score"],
+                        "severity": anomaly["severity"],
+                    },
+                )
 
             # Trend anomaly detection (last 7 daily averages)
             seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
@@ -133,6 +151,13 @@ async def handle_wearable_data_received(payload: dict) -> None:
                 daily_values = [float(row.avg_val) for row in daily_rows]
                 trend = detect_trend_anomaly(daily_values, window_days=len(daily_values))
                 if trend:
+                    suppressed, new_sev = await evaluate_contextual_suppression(
+                        pid, metric, trend["severity"], db
+                    )
+                    if suppressed:
+                        continue
+                    trend["severity"] = new_sev
+
                     trend_record = WearableAnomaly(
                         patient_id=pid,
                         metric=metric,
@@ -147,16 +172,19 @@ async def handle_wearable_data_received(payload: dict) -> None:
                     db.add(trend_record)
                     await db.flush()
 
-                    await event_bus.publish("anomaly.detected", {
-                        "patient_id": patient_id,
-                        "anomaly_id": str(trend_record.id),
-                        "metric": metric,
-                        "anomaly_type": "trend_anomaly",
-                        "value": daily_values[-1],
-                        "baseline_mean": baseline.baseline_mean,
-                        "trend_slope": trend["trend_slope"],
-                        "severity": trend["severity"],
-                    })
+                    await event_bus.publish(
+                        "anomaly.detected",
+                        {
+                            "patient_id": patient_id,
+                            "anomaly_id": str(trend_record.id),
+                            "metric": metric,
+                            "anomaly_type": "trend_anomaly",
+                            "value": daily_values[-1],
+                            "baseline_mean": baseline.baseline_mean,
+                            "trend_slope": trend["trend_slope"],
+                            "severity": trend["severity"],
+                        },
+                    )
 
         await db.commit()
     logger.info("Anomaly detection complete for patient %s", patient_id)

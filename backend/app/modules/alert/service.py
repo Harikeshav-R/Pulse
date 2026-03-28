@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 async def handle_symptom_reported(payload: dict) -> None:
     """Event handler for symptom.reported — evaluate alert rules and create alerts."""
-    from app.main import async_session_factory, event_bus, ws_manager
+    from app.main import async_session_factory, ws_manager
 
     patient_id = payload["patient_id"]
     severity = payload.get("severity_grade", 0)
@@ -27,7 +27,9 @@ async def handle_symptom_reported(payload: dict) -> None:
 
     logger.info(
         "Alert engine: evaluating symptom: patient=%s, term=%s, grade=%d",
-        patient_id, symptom_term, severity,
+        patient_id,
+        symptom_term,
+        severity,
     )
 
     async with async_session_factory() as db:
@@ -54,12 +56,16 @@ async def handle_symptom_reported(payload: dict) -> None:
                 # Broadcast to dashboard
                 trial_id = await _get_trial_id(patient_id, db)
                 if trial_id and ws_manager:
-                    await ws_manager.broadcast(trial_id, "alert.created", {
-                        "alert_id": str(alert.id),
-                        "patient_id": patient_id,
-                        "severity": severity_level,
-                        "title": alert.title,
-                    })
+                    await ws_manager.broadcast(
+                        trial_id,
+                        "alert.created",
+                        {
+                            "alert_id": str(alert.id),
+                            "patient_id": patient_id,
+                            "severity": severity_level,
+                            "title": alert.title,
+                        },
+                    )
 
         # Recalculate risk score
         risk = await calculate_risk_score(patient_id, db)
@@ -79,7 +85,7 @@ async def handle_symptom_reported(payload: dict) -> None:
                     patient_id=uuid.UUID(patient_id),
                     alert_type="risk_score_elevated",
                     severity="high",
-                    title=f"Patient risk score elevated to HIGH",
+                    title="Patient risk score elevated to HIGH",
                     description=(
                         f"Risk score increased from {prev.score} to {risk['score']}. "
                         f"Contributing factors: {', '.join(risk['factors'])}."
@@ -92,11 +98,15 @@ async def handle_symptom_reported(payload: dict) -> None:
         # Broadcast risk score update
         trial_id = await _get_trial_id(patient_id, db)
         if trial_id and ws_manager:
-            await ws_manager.broadcast(trial_id, "risk_score.updated", {
-                "patient_id": patient_id,
-                "score": risk["score"],
-                "tier": risk["tier"],
-            })
+            await ws_manager.broadcast(
+                trial_id,
+                "risk_score.updated",
+                {
+                    "patient_id": patient_id,
+                    "score": risk["score"],
+                    "tier": risk["tier"],
+                },
+            )
 
         await db.commit()
 
@@ -112,7 +122,9 @@ async def handle_anomaly_detected(payload: dict) -> None:
 
     logger.info(
         "Alert engine: evaluating anomaly: patient=%s, metric=%s, type=%s",
-        patient_id, metric, anomaly_type,
+        patient_id,
+        metric,
+        anomaly_type,
     )
 
     async with async_session_factory() as db:
@@ -135,14 +147,56 @@ async def handle_anomaly_detected(payload: dict) -> None:
 
             trial_id = await _get_trial_id(patient_id, db)
             if trial_id and ws_manager:
-                await ws_manager.broadcast(trial_id, "alert.created", {
-                    "alert_id": str(alert.id),
-                    "patient_id": patient_id,
-                    "severity": severity,
-                    "title": alert.title,
-                })
+                await ws_manager.broadcast(
+                    trial_id,
+                    "alert.created",
+                    {
+                        "alert_id": str(alert.id),
+                        "patient_id": patient_id,
+                        "severity": severity,
+                        "title": alert.title,
+                    },
+                )
 
         # Recalculate risk score
+        await calculate_risk_score(patient_id, db)
+        await db.commit()
+
+
+async def handle_checkin_missed(payload: dict) -> None:
+    """Event handler for checkin.missed — create alert if consecutive."""
+    from app.main import async_session_factory, ws_manager
+
+    patient_id = payload["patient_id"]
+
+    logger.info("Alert engine: evaluating missed checkin for patient %s", patient_id)
+
+    async with async_session_factory() as db:
+        if await should_create_alert(db, patient_id, "checkin_missed"):
+            alert = Alert(
+                patient_id=uuid.UUID(patient_id),
+                alert_type="checkin_missed",
+                severity="medium",
+                title="Missed Check-in",
+                description="Patient missed their scheduled check-in window (>24h).",
+                source_type="system",
+            )
+            db.add(alert)
+            await db.flush()
+
+            trial_id = await _get_trial_id(patient_id, db)
+            if trial_id and ws_manager:
+                await ws_manager.broadcast(
+                    trial_id,
+                    "alert.created",
+                    {
+                        "alert_id": str(alert.id),
+                        "patient_id": patient_id,
+                        "severity": "medium",
+                        "title": alert.title,
+                    },
+                )
+
         await calculate_risk_score(patient_id, db)
         await db.commit()
 
@@ -155,9 +209,9 @@ async def update_alert(
     db: AsyncSession,
 ) -> dict:
     """Update an alert's status (acknowledge, resolve, dismiss, escalate)."""
-    alert = (await db.execute(
-        select(Alert).where(Alert.id == uuid.UUID(alert_id))
-    )).scalars().first()
+    alert = (
+        (await db.execute(select(Alert).where(Alert.id == uuid.UUID(alert_id)))).scalars().first()
+    )
     if not alert:
         raise ValueError(f"Alert not found: {alert_id}")
 
@@ -192,15 +246,14 @@ async def get_alerts(
 ) -> list[dict]:
     """Get alerts for a trial with optional filtering."""
     # Get all patient_ids for this trial through sites
-    sites = (await db.execute(
-        select(Site).where(Site.trial_id == uuid.UUID(trial_id))
-    )).scalars().all()
+    sites = (
+        (await db.execute(select(Site).where(Site.trial_id == uuid.UUID(trial_id)))).scalars().all()
+    )
     site_ids = [s.id for s in sites]
 
-    from app.models.patient import Patient
-    patients = (await db.execute(
-        select(Patient).where(Patient.site_id.in_(site_ids))
-    )).scalars().all()
+    patients = (
+        (await db.execute(select(Patient).where(Patient.site_id.in_(site_ids)))).scalars().all()
+    )
     patient_ids = [p.id for p in patients]
 
     conditions = [Alert.patient_id.in_(patient_ids)]
@@ -210,10 +263,7 @@ async def get_alerts(
         conditions.append(Alert.severity == severity)
 
     result = await db.execute(
-        select(Alert)
-        .where(and_(*conditions))
-        .order_by(Alert.created_at.desc())
-        .limit(100)
+        select(Alert).where(and_(*conditions)).order_by(Alert.created_at.desc()).limit(100)
     )
     alerts = result.scalars().all()
 
@@ -235,13 +285,12 @@ async def get_alerts(
 
 async def _get_trial_id(patient_id: str, db: AsyncSession) -> str | None:
     """Get the trial_id for a patient (through site)."""
-    from app.models.patient import Patient
-    patient = (await db.execute(
-        select(Patient).where(Patient.id == uuid.UUID(patient_id))
-    )).scalars().first()
+    patient = (
+        (await db.execute(select(Patient).where(Patient.id == uuid.UUID(patient_id))))
+        .scalars()
+        .first()
+    )
     if not patient:
         return None
-    site = (await db.execute(
-        select(Site).where(Site.id == patient.site_id)
-    )).scalars().first()
+    site = (await db.execute(select(Site).where(Site.id == patient.site_id))).scalars().first()
     return str(site.trial_id) if site else None

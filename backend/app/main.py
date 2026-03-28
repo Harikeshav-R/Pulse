@@ -71,10 +71,16 @@ async def lifespan(app: FastAPI):
     )
     logger.info("EventBus listener started")
 
+    # ── Scheduler ──
+    from app.scheduler import start_scheduler, stop_scheduler
+
+    start_scheduler()
+
     yield
 
     # ── Shutdown ──
     logger.info("Shutting down TrialPulse backend")
+    stop_scheduler()
     listener_task.cancel()
     await event_bus.stop()
     await redis_client.close()
@@ -89,12 +95,17 @@ def _register_event_handlers(bus: EventBus) -> None:
     checkin → alert engine, wearable → anomaly detection → alert engine, etc.
     """
     # Import lazily to avoid circular imports
-    from app.modules.alert.service import handle_symptom_reported, handle_anomaly_detected
+    from app.modules.alert.service import (
+        handle_symptom_reported,
+        handle_anomaly_detected,
+        handle_checkin_missed,
+    )
     from app.modules.wearable.service import handle_wearable_data_received
 
     bus.subscribe("symptom.reported", handle_symptom_reported)
     bus.subscribe("anomaly.detected", handle_anomaly_detected)
     bus.subscribe("wearable.data_received", handle_wearable_data_received)
+    bus.subscribe("checkin.missed", handle_checkin_missed)
     logger.info("Event handlers registered")
 
 
@@ -124,6 +135,7 @@ def create_app() -> FastAPI:
     from app.modules.dashboard.router import router as dashboard_router
     from app.modules.analytics.router import router as analytics_router
     from app.modules.voice.router import router as voice_router
+    from app.modules.patient.router import router as patient_router
 
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(checkin_router, prefix="/api/v1")
@@ -132,6 +144,7 @@ def create_app() -> FastAPI:
     app.include_router(dashboard_router, prefix="/api/v1")
     app.include_router(analytics_router, prefix="/api/v1")
     app.include_router(voice_router, prefix="/api/v1")
+    app.include_router(patient_router, prefix="/api/v1")
 
     # ── Health check ──
     @app.get("/api/v1/health", tags=["system"])
@@ -146,16 +159,18 @@ def create_app() -> FastAPI:
 
         try:
             async with async_session_factory() as session:
-                await session.execute(
-                    __import__("sqlalchemy").text("SELECT 1")
-                )
+                await session.execute(__import__("sqlalchemy").text("SELECT 1"))
                 checks["postgres"] = "connected"
         except Exception:
             checks["postgres"] = "disconnected"
 
         checks["livekit"] = "configured" if settings.LIVEKIT_URL else "not_configured"
 
-        status = "ok" if all(v == "connected" for k, v in checks.items() if k != "livekit") else "degraded"
+        status = (
+            "ok"
+            if all(v == "connected" for k, v in checks.items() if k != "livekit")
+            else "degraded"
+        )
         return {"status": status, "services": checks}
 
     # ── WebSocket endpoint for dashboard real-time updates ──
