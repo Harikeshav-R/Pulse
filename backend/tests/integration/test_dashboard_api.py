@@ -25,3 +25,8 @@ async def test_dashboard_patient_list_with_auth(async_client: AsyncClient, mock_
 async def test_patient_symptom_history(async_client: AsyncClient, mock_patient_auth):
     response = await async_client.get("/api/v1/symptoms/history")
     assert response.status_code in [200, 500]
+
+@pytest.mark.asyncio
+async def test_dashboard_patient_symptoms(async_client: AsyncClient, mock_crc_auth):
+    response = await async_client.get("/api/v1/dashboard/patients/00000000-0000-0000-0000-000000000000/symptoms?status=pending_review")
+    assert response.status_code in [200, 500]
