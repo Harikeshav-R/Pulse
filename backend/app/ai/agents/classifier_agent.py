@@ -11,7 +11,7 @@ from langchain.agents.structured_output import ToolStrategy
 from langchain.tools import tool
 
 from app.ai.prompts.classifier_system import CLASSIFIER_SYSTEM_PROMPT
-from app.ai.schemas import ClassificationResult, SymptomClassification
+from app.ai.schemas import ClassificationResult
 from app.ai.tools.meddra_lookup import lookup_by_code
 from app.config import settings
 

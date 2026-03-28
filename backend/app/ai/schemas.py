@@ -5,7 +5,6 @@ to get validated, type-safe structured responses from the LLM.
 """
 
 from pydantic import BaseModel, Field
-from typing import Literal
 
 
 class SymptomClassification(BaseModel):

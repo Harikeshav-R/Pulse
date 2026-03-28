@@ -13,9 +13,8 @@ from typing import Annotated, Literal
 
 from langchain.agents import create_agent
 from langchain.tools import tool
-from langgraph.graph import END, StateGraph
+from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
-from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
 from app.ai.prompts.checkin_system import CHECKIN_SYSTEM_PROMPT

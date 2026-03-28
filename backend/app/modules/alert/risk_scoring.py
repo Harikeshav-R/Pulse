@@ -8,7 +8,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.alert import RiskScore
@@ -88,7 +88,7 @@ async def calculate_risk_score(
         .where(
             WearableAnomaly.patient_id == pid,
             WearableAnomaly.created_at >= cutoff,
-            WearableAnomaly.resolved == False,
+            WearableAnomaly.resolved.is_(False),
         )
     )
     anomalies = anomalies_result.scalars().all()
@@ -164,7 +164,7 @@ async def calculate_risk_score(
     db.add(risk)
     await db.flush()
 
-    from app.main import event_bus, ws_manager
+    from app.main import event_bus
     if event_bus:
         await event_bus.publish("risk_score.updated", {
             "patient_id": patient_id,

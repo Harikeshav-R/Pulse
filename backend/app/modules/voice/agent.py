@@ -14,7 +14,6 @@ from livekit.agents import (
     JobContext,
     WorkerOptions,
     cli,
-    llm as lk_llm,
 )
 from livekit.agents.voice import AgentSession, Agent
 from livekit.plugins import google
