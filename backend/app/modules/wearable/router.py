@@ -4,30 +4,12 @@ import logging
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import SQLModel
-
 from app.deps import get_db, get_current_patient, get_event_bus
 from app.modules.wearable.service import sync_readings, get_wearable_summary
+from app.schemas.wearable import WearableSyncRequest, WearableSyncResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["wearable"])
-
-
-class WearableReadingItem(SQLModel):
-    metric: str
-    value: float
-    recorded_at: str
-    source: str | None = None
-    quality: str = "raw"
-
-
-class WearableSyncRequest(SQLModel):
-    readings: list[WearableReadingItem]
-
-
-class WearableSyncResponse(SQLModel):
-    accepted: int
-    rejected: int
 
 
 @router.post("/wearable/sync", response_model=WearableSyncResponse)

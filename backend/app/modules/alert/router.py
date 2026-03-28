@@ -4,18 +4,12 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import SQLModel
-
 from app.deps import get_db, get_current_staff
 from app.modules.alert.service import get_alerts, update_alert
+from app.schemas.alert import AlertUpdateRequest
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["alerts"])
-
-
-class AlertUpdateRequest(SQLModel):
-    action: str  # acknowledge, resolve, dismiss, escalate
-    note: str | None = None
 
 
 @router.get("/dashboard/alerts")

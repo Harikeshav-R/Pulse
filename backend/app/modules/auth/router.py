@@ -4,35 +4,17 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import SQLModel
-
 from app.deps import get_db
 from app.modules.auth.service import patient_demo_login, staff_demo_login
+from app.schemas.auth import (
+    PatientDemoLoginRequest,
+    PatientDemoLoginResponse,
+    StaffDemoLoginRequest,
+    StaffDemoLoginResponse,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["auth"])
-
-
-# ─── Request/Response schemas ───
-
-
-class PatientDemoLoginRequest(SQLModel):
-    patient_id: str
-
-
-class PatientDemoLoginResponse(SQLModel):
-    patient_id: str
-    subject_id: str
-    access_token: str
-
-
-class StaffDemoLoginRequest(SQLModel):
-    staff_id: str
-
-
-class StaffDemoLoginResponse(SQLModel):
-    access_token: str
-    staff: dict
 
 
 # ─── Endpoints ───

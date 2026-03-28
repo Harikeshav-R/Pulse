@@ -4,32 +4,12 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import SQLModel
-
 from app.deps import get_db, get_current_patient, get_event_bus
 from app.modules.checkin.service import start_checkin, process_message
+from app.schemas.checkin import StartCheckinRequest, SendMessageRequest, CheckinResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["checkin"])
-
-
-# ─── Request/Response schemas ───
-
-
-class StartCheckinRequest(SQLModel):
-    session_type: str = "scheduled"
-    modality: str = "text"
-
-
-class SendMessageRequest(SQLModel):
-    content: str
-    message_type: str = "text"
-
-
-class CheckinResponse(SQLModel):
-    session_id: str
-    message: str
-    session_complete: bool = False
 
 
 # ─── Endpoints ───
