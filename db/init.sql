@@ -160,7 +160,7 @@ CREATE TABLE symptom_entries (
 CREATE TABLE wearable_connections (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id      UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
-    platform        VARCHAR(20) NOT NULL,
+    platform        VARCHAR(50) NOT NULL,
     device_name     VARCHAR(255),
     device_model    VARCHAR(255),
     last_sync_at    TIMESTAMPTZ,
