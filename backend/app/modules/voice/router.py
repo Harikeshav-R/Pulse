@@ -1,25 +1,16 @@
 """Voice check-in API endpoints."""
 
 import logging
-import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import SQLModel
-
-from app.deps import get_db, get_current_patient
+from app.deps import get_db, get_current_patient, get_current_staff
 from app.modules.checkin.service import start_checkin
-from app.modules.voice.service import create_voice_room
+from app.modules.voice.service import create_voice_room, get_transcript
+from app.schemas.voice import VoiceSessionResponse, TranscriptResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["voice"])
-
-
-class VoiceSessionResponse(SQLModel):
-    session_id: str
-    room_name: str
-    livekit_url: str
-    token: str
 
 
 @router.post("/voice/start", response_model=VoiceSessionResponse)
@@ -46,7 +37,8 @@ async def start_voice_checkin(
 
     logger.info(
         "Voice check-in started: session_id=%s, room=%s",
-        session_id, room["room_name"],
+        session_id,
+        room["room_name"],
     )
 
     return VoiceSessionResponse(
@@ -55,3 +47,13 @@ async def start_voice_checkin(
         livekit_url=room["livekit_url"],
         token=room["token"],
     )
+
+@router.get("/voice/transcript/{session_id}", response_model=TranscriptResponse)
+async def fetch_transcript(
+    session_id: str,
+    staff: dict = Depends(get_current_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch the chronological message transcript of a voice/text check-in session."""
+    messages = await get_transcript(session_id, db)
+    return TranscriptResponse(messages=messages)

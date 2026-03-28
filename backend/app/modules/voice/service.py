@@ -6,10 +6,12 @@ per TECHNICAL_DOC §5.3 and user requirements.
 
 import logging
 import uuid
-
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from livekit import api as livekit_api
 
 from app.config import settings
+from app.models.checkin import CheckinMessage
 
 logger = logging.getLogger(__name__)
 
@@ -70,3 +72,23 @@ async def get_agent_token(room_name: str) -> str:
     )
 
     return token.to_jwt()
+
+async def get_transcript(session_id: str, db: AsyncSession) -> list[dict]:
+    sid = uuid.UUID(session_id)
+    query = (
+        select(CheckinMessage)
+        .where(CheckinMessage.session_id == sid)
+        .order_by(CheckinMessage.sequence_number.asc())
+    )
+    result = await db.execute(query)
+    messages = result.scalars().all()
+    
+    return [
+        {
+            "id": str(msg.id),
+            "role": msg.role,
+            "content": msg.content,
+            "recorded_at": msg.created_at
+        }
+        for msg in messages
+    ]
