@@ -80,6 +80,24 @@ services:
     volumes:
       - ./backend:/app
 
+  # ─── Researcher Web Dashboard ───
+  dashboard:
+    build:
+      context: ./apps/dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      # Use the proxy port so the frontend goes through Nginx
+      VITE_API_URL: http://localhost:8080/api/v1
+    depends_on:
+      - backend
+    volumes:
+      # Mount the code for live-reloading during development
+      - ./apps/dashboard:/app
+      # Exclude node_modules to use the container's version
+      - /app/node_modules
+
   # ─── Nginx Reverse Proxy ───
   nginx:
     image: nginx:alpine
