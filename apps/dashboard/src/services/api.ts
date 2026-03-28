@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Mock authentication token for hackathon demo
-const DEMO_TOKEN = 'demo-staff-token-123';
+// Mock authentication token for hackathon demo (James Smith - CRC)
+const DEMO_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMWIyYzNkNC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMjEiLCJzdGFmZl9pZCI6ImExYjJjM2Q0LTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAyMSIsImVtYWlsIjoiamFtZXMuc21pdGhAbWVtb3JpYWwub3JnIiwicm9sZSI6ImNyYyIsInNpdGVzIjpbImExYjJjM2Q0LTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAxMCJdLCJleHAiOjE3NzQ4Mjg3MjN9.IUpHSzTkcA44iAg1MN6BKXMuTLtELlI1RFQ-KWDOHTs';
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api/v1',
