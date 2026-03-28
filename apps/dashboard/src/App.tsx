@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import './App.css'
 
-type ClinicalTrialCard = {
+import { CohortAnalytics } from './components/CohortAnalytics'
+
+export type ClinicalTrialCard = {
   id: string
   dateLabel: string
   trialTitle: string
@@ -22,7 +24,7 @@ type PatientConversation = {
   time: string
 }
 
-const clinicalTrialCards: ClinicalTrialCard[] = [
+export const clinicalTrialCards: ClinicalTrialCard[] = [
   {
     id: 'onco-tp1',
     dateLabel: 'Updated today',
@@ -169,6 +171,8 @@ function App() {
   const [darkMode, setDarkMode] = useState(false)
   const [isGridView, setIsGridView] = useState(true)
   const [messagesOpen, setMessagesOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics'>('overview')
+  const [selectedTrialId, setSelectedTrialId] = useState<string | null>(null)
 
   const status = useMemo(() => {
     const recruiting = clinicalTrialCards.filter((c) => c.trialStatusBadge === 'Recruiting').length
@@ -217,22 +221,24 @@ function App() {
             <span>CRC - Sarah</span>
           </button>
         </div>
-        <button className="messages-btn" onClick={() => setMessagesOpen(true)} title="Open patient conversations">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-          </svg>
-        </button>
+        {activeTab === 'overview' && (
+          <button className="messages-btn" onClick={() => setMessagesOpen(true)} title="Open patient conversations">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+            </svg>
+          </button>
+        )}
       </div>
 
       <div className="app-content">
         <div className="app-sidebar">
-          <a href="#" className="app-sidebar-link active" aria-label="Overview">
+          <a href="#" className={`app-sidebar-link ${activeTab === 'overview' ? 'active' : ''}`} aria-label="Overview" onClick={(e) => { e.preventDefault(); setActiveTab('overview'); }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
           </a>
-          <a href="#" className="app-sidebar-link" aria-label="Cohort Analytics">
+          <a href="#" className={`app-sidebar-link ${activeTab === 'analytics' ? 'active' : ''}`} aria-label="Cohort Analytics" onClick={(e) => { e.preventDefault(); setActiveTab('analytics'); setSelectedTrialId(null); setMessagesOpen(false); }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M21.21 15.89A10 10 0 118 2.83M22 12A10 10 0 0012 2v10z" />
             </svg>
@@ -254,6 +260,17 @@ function App() {
         </div>
 
         <div className="projects-section">
+          {activeTab === 'analytics' ? (
+            <CohortAnalytics
+              trialId={selectedTrialId}
+              onSelectTrial={(id) => {
+                setSelectedTrialId(id)
+                setActiveTab('analytics')
+              }}
+              trials={clinicalTrialCards}
+            />
+          ) : (
+            <>
           <div className="projects-section-header">
             <p>Clinical Trials</p>
             <p className="time">March 2026</p>
@@ -298,7 +315,14 @@ function App() {
           <div className={`project-boxes ${isGridView ? 'jsGridView' : 'jsListView'}`}>
             {clinicalTrialCards.map((card) => (
               <div className="project-box-wrapper" key={card.id}>
-                <div className="project-box" style={{ backgroundColor: card.cardColor }}>
+                <div 
+                  className="project-box" 
+                  style={{ backgroundColor: card.cardColor, cursor: 'pointer' }}
+                  onClick={() => {
+                    setSelectedTrialId(card.id)
+                    setActiveTab('analytics')
+                  }}
+                >
                   <div className="project-box-header">
                     <span>{card.dateLabel}</span>
                     <div className="more-wrapper">
@@ -341,42 +365,46 @@ function App() {
               </div>
             ))}
           </div>
+            </>
+          )}
         </div>
 
-        <div className={`messages-section ${messagesOpen ? 'show' : ''}`}>
-          <button className="messages-close" onClick={() => setMessagesOpen(false)} title="Close conversations">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="15" y1="9" x2="9" y2="15" />
-              <line x1="9" y1="9" x2="15" y2="15" />
-            </svg>
-          </button>
-          <div className="projects-section-header">
-            <p>Patient conversations</p>
-          </div>
-          <div className="messages">
-            {patientSafetyThreads.map((msg) => (
-              <div className="message-box" key={msg.id}>
-                <img src={msg.avatar} alt="" />
-                <div className="message-content">
-                  <div className="message-header">
-                    <div className="name">{msg.patientName}</div>
-                    <div className="star-checkbox">
-                      <input type="checkbox" id={msg.id} />
-                      <label htmlFor={msg.id}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                        </svg>
-                      </label>
+        {activeTab === 'overview' && (
+          <div className={`messages-section ${messagesOpen ? 'show' : ''}`}>
+            <button className="messages-close" onClick={() => setMessagesOpen(false)} title="Close conversations">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+              </svg>
+            </button>
+            <div className="projects-section-header">
+              <p>Patient conversations</p>
+            </div>
+            <div className="messages">
+              {patientSafetyThreads.map((msg) => (
+                <div className="message-box" key={msg.id}>
+                  <img src={msg.avatar} alt="" />
+                  <div className="message-content">
+                    <div className="message-header">
+                      <div className="name">{msg.patientName}</div>
+                      <div className="star-checkbox">
+                        <input type="checkbox" id={msg.id} />
+                        <label htmlFor={msg.id}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                          </svg>
+                        </label>
+                      </div>
                     </div>
+                    <p className="message-line">{msg.text}</p>
+                    <p className="message-line time">{msg.time}</p>
                   </div>
-                  <p className="message-line">{msg.text}</p>
-                  <p className="message-line time">{msg.time}</p>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
