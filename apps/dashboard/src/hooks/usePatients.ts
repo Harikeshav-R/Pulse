@@ -35,7 +35,7 @@ export interface PatientTimelineResponse {
 export interface PatientWearableDataResponse {
   data_points: { timestamp: string; value: number }[];
   baseline?: { mean: number; stddev: number };
-  anomalies: any[];
+  anomalies: unknown[];
 }
 
 export interface Symptom {
@@ -48,6 +48,18 @@ export interface Symptom {
   onset_date?: string;
 }
 
+export interface PatientDetail {
+  id: string;
+  subject_id: string;
+  treatment_arm?: string;
+  enrollment_date: string;
+  risk_score?: {
+    score: number;
+    tier: string;
+  };
+  [key: string]: unknown;
+}
+
 // --- Hooks ---
 
 export const usePatientList = (trialId: string, page = 1, limit = 20) => {
@@ -57,7 +69,7 @@ export const usePatientList = (trialId: string, page = 1, limit = 20) => {
       const response = await apiClient.get('/dashboard/patients', {
         params: { trial_id: trialId, limit, offset: (page - 1) * limit },
       });
-      return response as any;
+      return response as unknown as PatientListResponse;
     },
     enabled: !!trialId,
   });
@@ -66,9 +78,9 @@ export const usePatientList = (trialId: string, page = 1, limit = 20) => {
 export const usePatientDetail = (patientId: string) => {
   return useQuery({
     queryKey: ['patient', patientId],
-    queryFn: async () => {
+    queryFn: async (): Promise<PatientDetail> => {
       const response = await apiClient.get(`/dashboard/patients/${patientId}`);
-      return response as any;
+      return response as unknown as PatientDetail;
     },
     enabled: !!patientId,
   });
@@ -79,7 +91,7 @@ export const usePatientTimeline = (patientId: string) => {
     queryKey: ['patientTimeline', patientId],
     queryFn: async (): Promise<PatientTimelineResponse> => {
       const response = await apiClient.get(`/dashboard/patients/${patientId}/timeline`);
-      return response as any;
+      return response as unknown as PatientTimelineResponse;
     },
     enabled: !!patientId,
   });
@@ -92,7 +104,7 @@ export const usePatientWearable = (patientId: string, metric: string = 'heart_ra
       const response = await apiClient.get(`/dashboard/patients/${patientId}/wearable`, {
         params: { metric, days },
       });
-      return response as any;
+      return response as unknown as PatientWearableDataResponse;
     },
     enabled: !!patientId,
   });
@@ -105,7 +117,7 @@ export const usePatientSymptoms = (patientId: string, status?: string) => {
       const response = await apiClient.get(`/dashboard/patients/${patientId}/symptoms`, {
         params: status ? { status } : undefined,
       });
-      return response as any;
+      return response as unknown as Symptom[];
     },
     enabled: !!patientId,
   });
@@ -114,7 +126,7 @@ export const usePatientSymptoms = (patientId: string, status?: string) => {
 export const useReviewSymptom = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ symptomId, payload }: { symptomId: string, payload: any }) => {
+    mutationFn: async ({ symptomId, payload }: { symptomId: string, payload: unknown }) => {
       const response = await apiClient.post(`/dashboard/symptoms/${symptomId}/review`, payload);
       return response;
     },

@@ -29,7 +29,7 @@ type PatientConversation = {
   time: string
 }
 
-export const clinicalTrialCards: ClinicalTrialCard[] = [
+const clinicalTrialCards: ClinicalTrialCard[] = [
   {
     id: 'onco-tp1',
     dateLabel: 'Updated today',

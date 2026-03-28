@@ -96,15 +96,18 @@ export function CohortAnalytics({ trialId, onSelectTrial, trials }: CohortAnalyt
   // Process AE data
   // aeData shape: { "Nausea": { count: 12, by_grade: { 1: 5, 2: 4, 3: 3 } } ... } or something similar.
   // We need array format for Recharts.
-  const symptomsData = aeData ? Object.entries(aeData).map(([name, stats]: [string, any]) => ({
-    name,
-    grade1: stats.by_grade?.['1'] || 0,
-    grade2: stats.by_grade?.['2'] || 0,
-    grade3: stats.by_grade?.['3'] || 0,
-  })) : [];
+  const symptomsData = aeData ? Object.entries(aeData).map(([name, stats]) => {
+    const s = stats as { by_grade?: Record<string, number> };
+    return {
+      name,
+      grade1: s.by_grade?.['1'] || 0,
+      grade2: s.by_grade?.['2'] || 0,
+      grade3: s.by_grade?.['3'] || 0,
+    };
+  }) : [];
 
   return (
-    <div className="analytics-stats-view" style={{ '--theme-color': trial.progressColor } as any}>
+    <div className="analytics-stats-view" style={{ '--theme-color': trial.progressColor } as React.CSSProperties}>
       <div className="analytics-header">
         <button className="back-btn" onClick={() => onSelectTrial('')}>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -131,7 +134,7 @@ export function CohortAnalytics({ trialId, onSelectTrial, trials }: CohortAnalyt
         </div>
         <div className="kpi-card">
           <p className="kpi-title">Open Alerts</p>
-          <h3 className="kpi-value" style={{ color: overview?.open_alerts?.critical > 0 ? '#ef4444' : 'inherit' }}>
+          <h3 className="kpi-value" style={{ color: (overview?.open_alerts?.critical || 0) > 0 ? '#ef4444' : 'inherit' }}>
             {overview?.open_alerts?.critical || 0}
           </h3>
           <p className="kpi-trend">Critical alerts pending</p>

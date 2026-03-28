@@ -20,7 +20,7 @@ export const useAlerts = (status?: string, severity?: string, page = 1) => {
       const response = await apiClient.get('/dashboard/alerts', {
         params: { status, severity, page },
       });
-      return response as any;
+      return response as unknown as { alerts: Alert[]; total: number };
     },
   });
 };
@@ -28,7 +28,7 @@ export const useAlerts = (status?: string, severity?: string, page = 1) => {
 export const useUpdateAlert = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ alertId, payload }: { alertId: string, payload: any }) => {
+    mutationFn: async ({ alertId, payload }: { alertId: string, payload: unknown }) => {
       const response = await apiClient.put(`/dashboard/alerts/${alertId}`, payload);
       return response;
     },
@@ -39,12 +39,30 @@ export const useUpdateAlert = () => {
   });
 };
 
+export interface TrialOverview {
+  trial_id: string;
+  total_patients: number;
+  total_sites: number;
+  open_alerts: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+  risk_distribution: {
+    low: number;
+    medium: number;
+    high: number;
+  };
+  checkins_last_7_days: number;
+}
+
 export const useTrialOverview = (trialId: string | null) => {
   return useQuery({
     queryKey: ['trialOverview', trialId],
-    queryFn: async () => {
+    queryFn: async (): Promise<TrialOverview> => {
       const response = await apiClient.get(`/dashboard/trial/${trialId}/overview`);
-      return response as any;
+      return response as unknown as TrialOverview;
     },
     enabled: !!trialId,
   });
@@ -53,11 +71,11 @@ export const useTrialOverview = (trialId: string | null) => {
 export const useCohortAEIncidence = (trialId: string | null, days = 30) => {
   return useQuery({
     queryKey: ['cohortAE', trialId, days],
-    queryFn: async () => {
+    queryFn: async (): Promise<Record<string, unknown>> => {
       const response = await apiClient.get(`/analytics/trial/${trialId}/adverse-events`, {
         params: { days },
       });
-      return response as any;
+      return response as unknown as Record<string, unknown>;
     },
     enabled: !!trialId,
   });
