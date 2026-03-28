@@ -88,8 +88,8 @@ services:
     ports:
       - "5173:5173"
     environment:
-      # Use the proxy port so the frontend goes through Nginx
-      VITE_API_URL: http://localhost:8080/api/v1
+      # Tell Vite proxy to route /api requests to the backend container
+      VITE_BACKEND_URL: http://backend:8000
     depends_on:
       - backend
     volumes:
