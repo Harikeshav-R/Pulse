@@ -209,14 +209,6 @@ a {
   border-left: 2px solid var(--muted-border);
 }
 
-.profile-btn img {
-  width: 32px;
-  height: 32px;
-  object-fit: cover;
-  border-radius: 50%;
-  margin-right: 4px;
-}
-
 .profile-btn span {
   color: var(--main-color);
   font-size: 16px;
@@ -361,6 +353,17 @@ a {
   margin: 0 -8px;
   overflow-y: auto;
   padding-bottom: 32px;
+}
+
+.trial-grid-empty {
+  flex: 1 1 100%;
+  width: 100%;
+  margin: 0 8px;
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--secondary-color);
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 .project-boxes.jsGridView {
@@ -774,8 +777,7 @@ a {
 }
 
 @media screen and (max-width: 720px) {
-  .app-name,
-  .profile-btn span {
+  .app-name {
     display: none;
   }
 
@@ -838,11 +840,6 @@ a {
 
   .project-boxes.jsGridView .project-box-wrapper {
     width: 100%;
-  }
-
-  .profile-btn img {
-    width: 24px;
-    height: 24px;
   }
 
   .projects-section-header p,

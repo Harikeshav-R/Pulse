@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import './App.css'
 
 import { CohortAnalytics } from './components/CohortAnalytics'
+import { VisitCalendar } from './components/VisitCalendar'
+import { SettingsView } from './components/SettingsView'
 
 export type ClinicalTrialCard = {
   id: string
@@ -167,12 +169,33 @@ const patientSafetyThreads: PatientConversation[] = [
   },
 ]
 
+function matchesTrialSearch(card: ClinicalTrialCard, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  const haystack = [
+    card.id,
+    card.trialTitle,
+    card.trialSubtitle,
+    card.trialStatusBadge,
+    card.dateLabel,
+  ]
+    .join(' ')
+    .toLowerCase()
+  return haystack.includes(q)
+}
+
 function App() {
   const [darkMode, setDarkMode] = useState(false)
   const [isGridView, setIsGridView] = useState(true)
   const [messagesOpen, setMessagesOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'calendar' | 'settings'>('overview')
   const [selectedTrialId, setSelectedTrialId] = useState<string | null>(null)
+  const [trialSearchQuery, setTrialSearchQuery] = useState('')
+
+  const filteredHomeTrials = useMemo(
+    () => clinicalTrialCards.filter((card) => matchesTrialSearch(card, trialSearchQuery)),
+    [trialSearchQuery],
+  )
 
   const status = useMemo(() => {
     const recruiting = clinicalTrialCards.filter((c) => c.trialStatusBadge === 'Recruiting').length
@@ -191,7 +214,15 @@ function App() {
           <span className="app-icon" />
           <p className="app-name">Pulse</p>
           <div className="search-wrapper">
-            <input className="search-input" type="text" placeholder="Search trial, site, or patient thread" />
+            <input
+              className="search-input"
+              type="search"
+              placeholder="Search trials by name, protocol, or status"
+              value={trialSearchQuery}
+              onChange={(e) => setTrialSearchQuery(e.target.value)}
+              aria-label="Filter clinical trials"
+              autoComplete="off"
+            />
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="8" />
               <path d="M21 21l-4.35-4.35" />
@@ -204,21 +235,38 @@ function App() {
               <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
             </svg>
           </button>
-          <button className="add-btn" title="Add trial or site">
+          <button
+            type="button"
+            className="add-btn"
+            title="Open calendar"
+            aria-label="Open calendar"
+            onClick={() => {
+              setActiveTab('calendar')
+              setMessagesOpen(false)
+            }}
+          >
             <svg className="btn-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
           </button>
-          <button className="notification-btn" title="Notifications">
+          <button
+            type="button"
+            className="notification-btn"
+            title="Open settings"
+            aria-label="Open settings"
+            onClick={() => {
+              setActiveTab('settings')
+              setMessagesOpen(false)
+            }}
+          >
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
           </button>
-          <button className="profile-btn">
-            <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80" alt="CRC profile" />
-            <span>CRC - Sarah</span>
+          <button type="button" className="profile-btn">
+            <span>CRC</span>
           </button>
         </div>
         {activeTab === 'overview' && (
@@ -243,7 +291,7 @@ function App() {
               <path d="M21.21 15.89A10 10 0 118 2.83M22 12A10 10 0 0012 2v10z" />
             </svg>
           </a>
-          <a href="#" className="app-sidebar-link" aria-label="Visit Calendar">
+          <a href="#" className={`app-sidebar-link ${activeTab === 'calendar' ? 'active' : ''}`} aria-label="Visit Calendar" onClick={(e) => { e.preventDefault(); setActiveTab('calendar'); setMessagesOpen(false); }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
               <line x1="16" y1="2" x2="16" y2="6" />
@@ -251,7 +299,7 @@ function App() {
               <line x1="3" y1="10" x2="21" y2="10" />
             </svg>
           </a>
-          <a href="#" className="app-sidebar-link" aria-label="Settings">
+          <a href="#" className={`app-sidebar-link ${activeTab === 'settings' ? 'active' : ''}`} aria-label="Settings" onClick={(e) => { e.preventDefault(); setActiveTab('settings'); setMessagesOpen(false); }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
@@ -269,6 +317,10 @@ function App() {
               }}
               trials={clinicalTrialCards}
             />
+          ) : activeTab === 'calendar' ? (
+            <VisitCalendar />
+          ) : activeTab === 'settings' ? (
+            <SettingsView darkMode={darkMode} setDarkMode={setDarkMode} />
           ) : (
             <>
           <div className="projects-section-header">
@@ -313,7 +365,12 @@ function App() {
           </div>
 
           <div className={`project-boxes ${isGridView ? 'jsGridView' : 'jsListView'}`}>
-            {clinicalTrialCards.map((card) => (
+            {filteredHomeTrials.length === 0 ? (
+              <p className="trial-grid-empty" role="status">
+                No trials match &ldquo;{trialSearchQuery.trim()}&rdquo;. Try another name, protocol code, or status.
+              </p>
+            ) : (
+              filteredHomeTrials.map((card) => (
               <div className="project-box-wrapper" key={card.id}>
                 <div 
                   className="project-box" 
@@ -363,7 +420,8 @@ function App() {
                   </div>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
             </>
           )}
