@@ -16,12 +16,16 @@ import {
 } from 'recharts'
 import { useTrialOverview, useCohortAEIncidence } from '../hooks/useAlerts'
 import type { ClinicalTrialCard } from '../App'
+import { PatientListPage } from '../pages/PatientListPage'
+import { PatientDetailPage } from '../pages/PatientDetailPage'
+import { AlertQueuePage } from '../pages/AlertQueuePage'
 import './CohortAnalytics.css'
 
 interface CohortAnalyticsProps {
   trialId: string | null
   onSelectTrial: (id: string) => void
   trials: ClinicalTrialCard[]
+  onAddTrial?: (trial: ClinicalTrialCard) => void
 }
 
 const mockHRTrend = [
@@ -34,11 +38,16 @@ const mockHRTrend = [
   { day: 'Today', hr: 88 },
 ]
 
-export function CohortAnalytics({ trialId, onSelectTrial, trials }: CohortAnalyticsProps) {
+export function CohortAnalytics({ trialId, onSelectTrial, trials, onAddTrial }: CohortAnalyticsProps) {
   const [searchQuery, setSearchQuery] = useState('')
+  const [isAddingTrial, setIsAddingTrial] = useState(false)
+  const [newTrialInfo, setNewTrialInfo] = useState('')
+  const [activeSubView, setActiveSubView] = useState<'stats' | 'patients'>('stats')
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
 
-  const { data: overview, isLoading: overviewLoading } = useTrialOverview(trialId);
-  const { data: aeData, isLoading: aeLoading } = useCohortAEIncidence(trialId);
+  const fetchCohortStats = !!trialId && !trialId.startsWith('new-')
+  const { data: overview, isLoading: overviewLoading } = useTrialOverview(trialId, fetchCohortStats)
+  const { data: aeData, isLoading: aeLoading } = useCohortAEIncidence(trialId, 30, fetchCohortStats)
 
   if (!trialId) {
     const filteredTrials = trials.filter(t => 
@@ -46,10 +55,59 @@ export function CohortAnalytics({ trialId, onSelectTrial, trials }: CohortAnalyt
       t.trialSubtitle.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
+    if (isAddingTrial) {
+      return (
+        <div className="analytics-search-view">
+          <div className="projects-section-header">
+            <p>Add New Clinical Trial</p>
+          </div>
+          <div className="add-trial-form">
+            <div className="form-group">
+              <label>Trial Information</label>
+              <textarea 
+                value={newTrialInfo}
+                onChange={(e) => setNewTrialInfo(e.target.value)}
+                placeholder="e.g., Phase I/II study of CAR-T cell therapy targeting CD19 in relapsed/refractory B-cell acute lymphoblastic leukemia."
+                rows={4}
+              />
+            </div>
+            <div className="form-group">
+              <label>Preclinical Data (PDF/Doc)</label>
+              <input type="file" />
+            </div>
+            <div className="form-group">
+              <label>Patient Data (CSV/Excel)</label>
+              <input type="file" />
+            </div>
+            <div className="form-actions">
+              <button className="cancel-btn" onClick={() => setIsAddingTrial(false)}>Cancel</button>
+              <button className="submit-btn" onClick={() => {
+                const newTrial: ClinicalTrialCard = {
+                  id: `new-${Date.now()}`,
+                  dateLabel: 'Just now',
+                  trialTitle: 'NEW-TRIAL',
+                  trialSubtitle: newTrialInfo.length > 50 ? newTrialInfo.substring(0, 50) + '...' : newTrialInfo,
+                  progressPercent: 0,
+                  progressColor: '#3b82f6',
+                  cardColor: '#eff6ff',
+                  siteTeamAvatars: [],
+                  trialStatusBadge: 'Setup',
+                  badgeColor: '#3b82f6',
+                }
+                onAddTrial?.(newTrial)
+                setIsAddingTrial(false)
+              }}>Add Trial</button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="analytics-search-view">
-        <div className="projects-section-header">
+        <div className="projects-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <p>Clinical Trials Analytics</p>
+          <button className="add-btn-primary" onClick={() => setIsAddingTrial(true)}>+ Add Trial</button>
         </div>
         <div className="analytics-search-box">
           <input 
@@ -83,7 +141,11 @@ export function CohortAnalytics({ trialId, onSelectTrial, trials }: CohortAnalyt
   const trial = trials.find(t => t.id === trialId)
   if (!trial) return <p>Trial not found.</p>
 
-  if (overviewLoading || aeLoading) return <div style={{ padding: 20 }}>Loading analytics...</div>;
+  const isNewTrial = trialId.startsWith('new-')
+
+  if (fetchCohortStats && (overviewLoading || aeLoading)) {
+    return <div style={{ padding: 20 }}>Loading analytics...</div>
+  }
 
   // Process data for charts
   const riskDistribution = overview?.risk_distribution || { low: 0, medium: 0, high: 0 };
@@ -108,20 +170,58 @@ export function CohortAnalytics({ trialId, onSelectTrial, trials }: CohortAnalyt
 
   return (
     <div className="analytics-stats-view" style={{ '--theme-color': trial.progressColor } as React.CSSProperties}>
-      <div className="analytics-header">
-        <button className="back-btn" onClick={() => onSelectTrial('')}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to Trials
-        </button>
-        <div>
-          <h2>{trial.trialTitle} Stats</h2>
-          <p>{trial.trialSubtitle}</p>
+      <div className="analytics-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+          <button className="back-btn" onClick={() => {
+            onSelectTrial('')
+            setActiveSubView('stats')
+            setSelectedPatientId(null)
+          }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Trials
+          </button>
+          <div>
+            <h2>{trial.trialTitle} {activeSubView === 'stats' ? 'Stats' : 'Patients'}</h2>
+            <p>{trial.trialSubtitle}</p>
+          </div>
         </div>
+        <button 
+          className="add-btn-primary" 
+          onClick={() => {
+            setActiveSubView(v => v === 'stats' ? 'patients' : 'stats')
+            setSelectedPatientId(null)
+          }}
+        >
+          {activeSubView === 'stats' ? 'Patients' : 'Stats'}
+        </button>
       </div>
 
-      <div className="kpi-grid">
+      {activeSubView === 'patients' ? (
+        selectedPatientId ? (
+          <PatientDetailPage 
+            patientId={selectedPatientId} 
+            onBack={() => setSelectedPatientId(null)} 
+          />
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            <PatientListPage trialId={trialId} onSelectPatient={setSelectedPatientId} />
+            <hr style={{ border: 'none', borderTop: '1px solid var(--muted-border)' }} />
+            <AlertQueuePage trialId={trialId} />
+          </div>
+        )
+      ) : isNewTrial ? (
+        <div className="analytics-new-trial-empty">
+          <p className="analytics-new-trial-empty-title">No analytics yet</p>
+          <p className="analytics-new-trial-empty-copy">
+            This trial is still in setup. Cohort KPIs, adverse-event summaries, risk distribution, and wearable trends will
+            appear here after patients are enrolled and visit, symptom, and device data are flowing.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="kpi-grid">
         <div className="kpi-card">
           <p className="kpi-title">Total Enrolled</p>
           <h3 className="kpi-value">{overview?.total_patients || 0}</h3>
@@ -195,6 +295,8 @@ export function CohortAnalytics({ trialId, onSelectTrial, trials }: CohortAnalyt
           </ResponsiveContainer>
         </div>
       </div>
+      </>
+      )}
     </div>
   )
 }

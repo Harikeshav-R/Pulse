@@ -1,139 +1,51 @@
 # Pulse
 
-Pulse is an AI-powered patient safety and engagement platform designed to modernize clinical trial monitoring. It bridges the gap between scheduled clinic visits by providing continuous, intelligent oversight of participant well-being through conversational AI, wearable data integration, and real-time researcher dashboards.
+AI-powered clinical trial patient safety and engagement platform.
 
-## System Overview
+## Inspiration
 
-Pulse consists of three primary integrated components:
+Trial safety often depends on sparse site visits and delayed paper trails, while patients experience symptoms and behavior changes every day. We wanted a **continuous signal**—not to replace regulated workflows, but to help sites and sponsors **see risk earlier**, keep patients engaged, and reduce the gap between what happens in real life and what makes it into a safety narrative.
 
-1.  **AI Symptom Journal (Mobile App):** A React Native application where participants report symptoms through natural language conversations (text or real-time voice) driven by a protocol-aware AI agent.
-2.  **Wearable Health Integration:** A passive data ingestion pipeline that collects metrics from consumer wearables and employs statistical anomaly detection to identify clinically significant deviations from a patient's personal baseline.
-3.  **Researcher Safety Dashboard (Web App):** A centralized command center for clinical research coordinators (CRCs) and principal investigators (PIs) to monitor patient risk scores, triage automated alerts, and analyze cohort-level safety signals.
+## What it does
 
-## High-Level Architecture
+**Pulse (TrialPulse)** connects **patients**, **wearables**, and **study teams** in one loop:
 
-The platform is built as a modular monolith with a Python/FastAPI backend, a React web dashboard, and a React Native mobile app. It uses an event-driven internal architecture for real-time processing.
+- **Mobile app** — Daily check-ins, structured capture of how patients feel, and pathways for voice/chat-style support (e.g. LiveKit-backed flows in the stack).
+- **Backend** — FastAPI services for auth, patients, check-ins, wearables, alerts, voice, and analytics; **AI-assisted** classification and check-in reasoning (LangGraph-style flows); **risk scoring** and **alert** generation when patterns worsen.
+- **CRC dashboard** — Trial overview, **patient list**, **alert queue**, **visit calendar**, and **cohort analytics** (risk distribution, AE-style views, wearable trends) so coordinators can prioritize who needs attention.
 
-```mermaid
-graph TD
-    subgraph "Presentation Layer"
-        MobileApp[Patient Mobile App<br/>React Native + Expo]
-        WebDashboard[Researcher Dashboard<br/>React + TypeScript]
-    end
+The goal: **one place** to monitor engagement, symptoms, and device-derived trends so escalations are **timely and explainable**.
 
-    subgraph "Backend (FastAPI Monolith)"
-        API[FastAPI REST & WebSocket API]
-        
-        subgraph "AI Orchestration (LangGraph)"
-            CheckinAgent[Check-in Agent]
-            Classifier[Symptom Classifier]
-        end
-        
-        subgraph "Engines"
-            AnomalyEngine[Anomaly Detection]
-            AlertEngine[Rule & Risk Engine]
-        end
-        
-        subgraph "Real-Time Services"
-            LiveKitAgent[LiveKit Voice Agent]
-            WSManager[WebSocket Manager]
-        end
-    end
+## How we built it
 
-    subgraph "Data & Infrastructure"
-        Postgres[(PostgreSQL 16)]
-        Redis[(Redis 7 - Event Bus)]
-        MinIO[(MinIO - Object Storage)]
-        LiveKitServer[LiveKit Server]
-    end
+- **Monorepo** with a **Python/FastAPI** backend (async SQLAlchemy, Pydantic), **PostgreSQL** for trial/patient/alert data, **Redis** for events and coordination, **MinIO** for object storage, and **Docker Compose** for a reproducible dev stack.
+- **AI layer** — LLM access via **OpenRouter** (and Gemini-related paths for voice/agent experiments), with **graphs/agents** for check-in and classification workflows.
+- **Real-time / voice** — **LiveKit** in the compose stack for future or demo-grade realtime/voice paths.
+- **Dashboard** — **React + Vite**, TanStack Query, Recharts, and a proxy to the API for local development.
+- **Mobile** — **Expo / React Native** app for the patient experience, wired to the same API concepts.
 
-    MobileApp <--> API
-    MobileApp <--> LiveKitServer
-    WebDashboard <--> API
-    WebDashboard <--> WSManager
-    
-    API <--> Postgres
-    API <--> Redis
-    
-    CheckinAgent <--> Postgres
-    Classifier <--> Postgres
-    
-    AnomalyEngine --> Redis
-    Redis --> AlertEngine
-    AlertEngine --> WSManager
-    WSManager --> WebDashboard
-```
+## Challenges we ran into
 
-## Key Components
+- **Glueing clinical nuance to engineering** — Balancing realistic CRC workflows (triaging alerts, audit-friendly language) with hackathon scope.
+- **End-to-end environments** — Coordinating Postgres, Redis, LiveKit, and backend ports across laptops and Docker (e.g. host port conflicts, env parity between dashboard proxy and API).
+- **Native + web + AI** — Keeping mobile, dashboard, and LLM pipelines aligned on the same domain models (patients, trials, symptoms, wearables) without over-building schema migrations mid-hack.
 
-### 1. AI Symptom Journal
-The mobile app replaces traditional paper diaries with a conversational interface. 
-- **Modality:** Supports both text-based chat and low-latency voice interaction.
-- **Intelligence:** Uses LangGraph to drive a stateful conversation that adapts based on the trial protocol and patient history.
-- **Classification:** Automatically maps free-text descriptions to MedDRA-coded terms and CTCAE severity grades.
+## Accomplishments that we're proud of
 
-### 2. Wearable Integration & Anomaly Detection
-The system ingests objective data (Heart Rate, SpO2, Steps, Sleep) to provide a 360-degree view of patient health.
-- **Baselines:** Establishes personalized "normal" ranges for each patient during an initial enrollment period.
-- **Detection:** Uses Z-score analysis for point anomalies and sliding-window linear regression for subtle trend detection.
-- **Risk Scoring:** Calculates a composite risk score (0-100) factoring in symptom reports, wearable anomalies, and engagement metrics.
+- A **credible vertical slice**: patient-facing app, API with multiple modules, and a **researcher dashboard** that tells a coherent safety story.
+- **Risk and alerts** tied to **symptoms + wearable logic**, not just static mock UI.
+- **Dockerized stack** others can actually run: DB seed paths, health checks, and a Makefile for common tasks.
+- **Unified patient narrative** on the dashboard (e.g. combining check-in severity, HR trends, and fatigue context) to show how Pulse **summarizes** signal for busy CRCs.
 
-### 3. Researcher Dashboard
-A real-time interface for clinical teams to manage safety workflows.
-- **Triage:** A prioritized alert queue based on AI-generated risk scores.
-- **Human-in-the-loop:** CRCs review and confirm AI symptom classifications before they enter the official trial record.
-- **Analytics:** Cohort-level visualizations to detect safety signals across treatment arms.
+## What we learned
 
-## Technical Stack
+- **Safety UX is product work** — Clear copy, alert wording, and “unified clinical picture” views matter as much as the model.
+- **Async FastAPI + event bus patterns** scale better for **notifications and future realtime** than a purely CRUD API.
+- **DevEx details** (Vite proxy to correct API port, `.env` parity) save hours when judges or teammates try to run the demo.
 
-| Category | Technologies |
-| :--- | :--- |
-| **Backend** | Python 3.12, FastAPI, SQLAlchemy (Async), Pydantic |
-| **AI/ML** | LangChain, LangGraph, Gemini Live (via LiveKit) |
-| **Frontend (Web)** | React 18, TypeScript, Tailwind CSS, Recharts, TanStack Table |
-| **Frontend (Mobile)** | React Native, Expo, NativeWind, LiveKit SDK |
-| **Real-Time** | LiveKit (Voice), Native WebSockets (Dashboard) |
-| **Data Stores** | PostgreSQL 16, Redis 7 (Pub/Sub & Cache), MinIO (S3-compatible) |
-| **Infrastructure** | Docker, Docker Compose, Nginx |
+## What's next for Pulse
 
-## Data Flow: Symptom Reporting to Dashboard
-
-```mermaid
-sequenceDiagram
-    participant P as Patient (Mobile)
-    participant A as AI Agent (LangGraph)
-    participant DB as PostgreSQL
-    participant EB as Redis (Event Bus)
-    participant RE as Alert Engine
-    participant WS as WebSocket Manager
-    participant D as Dashboard (Web)
-
-    P->>A: Reports symptom (Text/Voice)
-    A->>A: Classify symptom (MedDRA/CTCAE)
-    A->>DB: Save symptom entry
-    A->>EB: Publish 'symptom.reported'
-    EB->>RE: Trigger Rule Evaluation
-    RE->>RE: Recalculate Risk Score
-    RE->>DB: Save Alert & Risk Score
-    RE->>WS: Broadcast Update
-    WS->>D: Push real-time Alert/Risk update
-```
-
-## Setup and Development
-
-Pulse is designed to run entirely in a local Docker environment for development and demonstration.
-
-### Prerequisites
-- Docker and Docker Compose
-- Node.js (v20+)
-- Python 3.12+
-- API Keys: Google Gemini API (for LLM and Voice)
-
-### Getting Started
-1.  **Clone the repository.**
-2.  **Configure Environment:** Copy `.env.example` to `.env` and provide the required API keys.
-3.  **Start Services:** Run `docker compose up -d` to start the backend, database, and infrastructure.
-4.  **Backend Setup:** Navigate to `backend/` and install dependencies using `uv`.
-5.  **Frontend Setup:** Navigate to `apps/dashboard/` and `apps/mobile/` to install Node dependencies.
-
-For detailed implementation notes, refer to `TECHNICAL_DOC.md` and `DESIGN_DOC.md`.
+- Deeper **EDC / CTMS** integration hooks (exports, reference IDs) without storing PHI beyond policy.
+- **Prospective validation** of risk scores with study statisticians; calibration per indication and arm.
+- **Patient** — richer adherence nudges and localized content; **Site** — workload views and SLA-style alert routing.
+- Hardening **voice** flows for regulated use (consent, retention, redaction) and expanding **wearable** normative baselines per protocol.
