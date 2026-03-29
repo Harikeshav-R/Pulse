@@ -209,8 +209,9 @@ async def entrypoint(ctx: JobContext):
 
     # Create Gemini Live realtime model — native audio-to-audio
     model = google.beta.realtime.RealtimeModel(
-        model="gemini-2.0-flash-exp",
-        voice="Puck",
+        model="gemini-2.5-flash-native-audio-preview-12-2025",
+        # model="gemini-2.0-flash-exp",
+        # voice="Puck",
         temperature=0.7,
         api_key=settings.GOOGLE_API_KEY,
     )
@@ -238,6 +239,9 @@ async def entrypoint(ctx: JobContext):
 
     await session.start(room=ctx.room, agent=agent)
     logger.info("Voice agent session active: room=%s", ctx.room.name)
+
+    # Prompt the agent to greet the patient first
+    await session.generate_reply()
 
     # Wait for the session to end (participant disconnect), then classify
     @ctx.room.on("participant_disconnected")
