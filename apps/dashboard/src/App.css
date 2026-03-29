@@ -40,6 +40,17 @@
   --light-font: rgba(255, 255, 255, 0.7);
 }
 
+/* Visit Calendar tab: calendar first, then patient list, then alert queue */
+.calendar-tab-stack {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.calendar-tab-stack > *:not(:first-child) {
+  border-top: 1px solid var(--message-box-border);
+}
+
 .app-container {
   width: 100%;
   min-height: 100vh;
@@ -639,15 +650,7 @@ a {
   border-top-color: var(--link-color-hover);
 }
 
-.message-box img {
-  border-radius: 50%;
-  object-fit: cover;
-  width: 40px;
-  height: 40px;
-}
-
 .message-content {
-  padding-left: 16px;
   width: 100%;
 }
 

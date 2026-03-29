@@ -4,10 +4,6 @@ import './App.css'
 import { CohortAnalytics } from './components/CohortAnalytics'
 import { VisitCalendar } from './components/VisitCalendar'
 import { SettingsView } from './components/SettingsView'
-import { PatientListPage } from './pages/PatientListPage'
-import { PatientDetailPage } from './pages/PatientDetailPage'
-import { AlertQueuePage } from './pages/AlertQueuePage'
-
 export type ClinicalTrialCard = {
   id: string
   dateLabel: string
@@ -23,7 +19,6 @@ export type ClinicalTrialCard = {
 
 type PatientConversation = {
   id: string
-  avatar: string
   patientName: string
   text: string
   time: string
@@ -124,50 +119,38 @@ const clinicalTrialCards: ClinicalTrialCard[] = [
 const patientSafetyThreads: PatientConversation[] = [
   {
     id: 't1',
-    avatar:
-      'https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=200&q=80',
     patientName: 'David T.',
-    text: 'Anyone else on Arm A feel nauseous the first few hours after dosing? I don’t want to overreact but it’s been rough since Tuesday.',
+    text: 'Daily check-in: Nausea within a few hours of Arm A dosing, ongoing since Tuesday. Discussed symptom intensity vs. expected AE profile and whether to hold dose or add supportive care.',
     time: '2 min ago',
   },
   {
     id: 't2',
-    avatar:
-      'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&h=200&q=80',
     patientName: 'Maria G.',
-    text: 'David — I had that week one too. Sipping ginger tea and smaller meals helped. Happy to compare notes if your team says it’s okay.',
+    text: 'Daily check-in: Mild GI upset week one of current cycle. Reviewed meal timing and hydration with site; aligned on watch-and-wait unless vomiting or weight loss.',
     time: '8 min ago',
   },
   {
     id: 't3',
-    avatar:
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
     patientName: 'Thomas O.',
-    text: 'Thanks both. I’m on a higher dose and fatigue stacks with the nausea. @Robert did you get any relief after they adjusted your schedule?',
+    text: 'Daily check-in: Higher dose cohort — fatigue layered on nausea. Trial discussion: prior schedule change for another participant; explored moving PRO window to afternoons for earlier symptom capture.',
     time: '22 min ago',
   },
   {
     id: 't4',
-    avatar:
-      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
     patientName: 'Robert K.',
-    text: 'Yeah — moving check-ins to afternoons made it easier to catch symptoms early. Still tired but more manageable.',
+    text: 'Daily check-in: Fatigue stable, nausea improved vs. last visit. Discussed shifting remote check-ins to afternoons; patient reports better diary completion and same-day CRC follow-up.',
     time: '35 min ago',
   },
   {
     id: 't5',
-    avatar:
-      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80',
     patientName: 'Jennifer W.',
-    text: 'Sorry I’ve been quiet — long work days. If someone’s missed a diary entry, did the study app let you backfill or do you call the site?',
+    text: 'Daily check-in: Missed two e-diary entries due to work travel. Discussed protocol-acceptable backfill in Pulse vs. site call-in; documented reason in source.',
     time: '1 hr ago',
   },
   {
     id: 't6',
-    avatar:
-      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80',
     patientName: 'David T.',
-    text: 'Jennifer — I used “add note for yesterday” in Pulse and the CRC messaged me same day. Hope that helps.',
+    text: 'Follow-up summary: Used “add note for yesterday” after missed diary; CRC acknowledged same day and updated visit worksheet. Reinforced escalation path if nausea worsens.',
     time: '1 hr ago',
   },
 ]
@@ -191,25 +174,25 @@ function App() {
   const [darkMode, setDarkMode] = useState(false)
   const [isGridView, setIsGridView] = useState(true)
   const [messagesOpen, setMessagesOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'calendar' | 'settings' | 'patients' | 'alerts'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'calendar' | 'settings'>('overview')
   const [selectedTrialId, setSelectedTrialId] = useState<string | null>(null)
-  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
   const [trialSearchQuery, setTrialSearchQuery] = useState('')
+  const [trialsList, setTrialsList] = useState<ClinicalTrialCard[]>(clinicalTrialCards)
 
   const filteredHomeTrials = useMemo(
-    () => clinicalTrialCards.filter((card) => matchesTrialSearch(card, trialSearchQuery)),
-    [trialSearchQuery],
+    () => trialsList.filter((card) => matchesTrialSearch(card, trialSearchQuery)),
+    [trialSearchQuery, trialsList],
   )
 
   const status = useMemo(() => {
-    const recruiting = clinicalTrialCards.filter((c) => c.trialStatusBadge === 'Recruiting').length
-    const enrolledApprox = 48 * clinicalTrialCards.length
+    const recruiting = trialsList.filter((c) => c.trialStatusBadge === 'Recruiting').length
+    const enrolledApprox = 48 * trialsList.length
     return {
-      activeTrials: clinicalTrialCards.length,
+      activeTrials: trialsList.length,
       recruitingTrials: recruiting,
       enrolledPatients: enrolledApprox,
     }
-  }, [])
+  }, [trialsList])
 
   return (
     <div className={`app-container ${darkMode ? 'dark' : ''}`}>
@@ -274,7 +257,7 @@ function App() {
           </button>
         </div>
         {activeTab === 'overview' && (
-          <button className="messages-btn" onClick={() => setMessagesOpen(true)} title="Open patient conversations">
+          <button className="messages-btn" onClick={() => setMessagesOpen(true)} title="Open check-in summaries">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
             </svg>
@@ -284,32 +267,18 @@ function App() {
 
       <div className="app-content">
         <div className="app-sidebar">
-          <a href="#" className={`app-sidebar-link ${activeTab === 'overview' ? 'active' : ''}`} aria-label="Overview" onClick={(e) => { e.preventDefault(); setActiveTab('overview'); setSelectedPatientId(null); }}>
+          <a href="#" className={`app-sidebar-link ${activeTab === 'overview' ? 'active' : ''}`} aria-label="Overview" onClick={(e) => { e.preventDefault(); setActiveTab('overview'); }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
           </a>
-          <a href="#" className={`app-sidebar-link ${activeTab === 'patients' ? 'active' : ''}`} aria-label="Patients" onClick={(e) => { e.preventDefault(); setActiveTab('patients'); setSelectedPatientId(null); setMessagesOpen(false); }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-              <circle cx="9" cy="7" r="4"></circle>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-            </svg>
-          </a>
-          <a href="#" className={`app-sidebar-link ${activeTab === 'alerts' ? 'active' : ''}`} aria-label="Alerts" onClick={(e) => { e.preventDefault(); setActiveTab('alerts'); setSelectedPatientId(null); setMessagesOpen(false); }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-            </svg>
-          </a>
-          <a href="#" className={`app-sidebar-link ${activeTab === 'analytics' ? 'active' : ''}`} aria-label="Cohort Analytics" onClick={(e) => { e.preventDefault(); setActiveTab('analytics'); setSelectedTrialId(null); setSelectedPatientId(null); setMessagesOpen(false); }}>
+          <a href="#" className={`app-sidebar-link ${activeTab === 'analytics' ? 'active' : ''}`} aria-label="Cohort Analytics" onClick={(e) => { e.preventDefault(); setActiveTab('analytics'); setSelectedTrialId(null); setMessagesOpen(false); }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M21.21 15.89A10 10 0 118 2.83M22 12A10 10 0 0012 2v10z" />
             </svg>
           </a>
-          <a href="#" className={`app-sidebar-link ${activeTab === 'calendar' ? 'active' : ''}`} aria-label="Visit Calendar" onClick={(e) => { e.preventDefault(); setActiveTab('calendar'); setSelectedPatientId(null); setMessagesOpen(false); }}>
+          <a href="#" className={`app-sidebar-link ${activeTab === 'calendar' ? 'active' : ''}`} aria-label="Visit Calendar" onClick={(e) => { e.preventDefault(); setActiveTab('calendar'); setMessagesOpen(false); }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
               <line x1="16" y1="2" x2="16" y2="6" />
@@ -317,7 +286,7 @@ function App() {
               <line x1="3" y1="10" x2="21" y2="10" />
             </svg>
           </a>
-          <a href="#" className={`app-sidebar-link ${activeTab === 'settings' ? 'active' : ''}`} aria-label="Settings" onClick={(e) => { e.preventDefault(); setActiveTab('settings'); setSelectedPatientId(null); setMessagesOpen(false); }}>
+          <a href="#" className={`app-sidebar-link ${activeTab === 'settings' ? 'active' : ''}`} aria-label="Settings" onClick={(e) => { e.preventDefault(); setActiveTab('settings'); setMessagesOpen(false); }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
@@ -326,29 +295,23 @@ function App() {
         </div>
 
         <div className="projects-section">
-          {activeTab === 'patients' && selectedPatientId ? (
-            <PatientDetailPage 
-              patientId={selectedPatientId} 
-              onBack={() => setSelectedPatientId(null)} 
-            />
-          ) : activeTab === 'patients' ? (
-            <PatientListPage 
-              trialId={selectedTrialId || 'a1b2c3d4-0000-4000-8000-000000000001'} 
-              onSelectPatient={(id) => setSelectedPatientId(id)} 
-            />
-          ) : activeTab === 'alerts' ? (
-            <AlertQueuePage trialId={selectedTrialId || 'a1b2c3d4-0000-4000-8000-000000000001'} />
-          ) : activeTab === 'analytics' ? (
+          {activeTab === 'analytics' ? (
             <CohortAnalytics
               trialId={selectedTrialId}
               onSelectTrial={(id) => {
                 setSelectedTrialId(id)
                 setActiveTab('analytics')
               }}
-              trials={clinicalTrialCards}
+              trials={trialsList}
+              onAddTrial={(newTrial) => {
+                setTrialsList(prev => [newTrial, ...prev])
+                // We do not auto-select the new trial
+              }}
             />
           ) : activeTab === 'calendar' ? (
-            <VisitCalendar />
+            <div className="calendar-tab-stack">
+              <VisitCalendar />
+            </div>
           ) : activeTab === 'settings' ? (
             <SettingsView darkMode={darkMode} setDarkMode={setDarkMode} />
           ) : (
@@ -459,7 +422,7 @@ function App() {
 
         {activeTab === 'overview' && (
           <div className={`messages-section ${messagesOpen ? 'show' : ''}`}>
-            <button className="messages-close" onClick={() => setMessagesOpen(false)} title="Close conversations">
+            <button className="messages-close" onClick={() => setMessagesOpen(false)} title="Close check-in summaries">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="15" y1="9" x2="9" y2="15" />
@@ -467,12 +430,11 @@ function App() {
               </svg>
             </button>
             <div className="projects-section-header">
-              <p>Patient conversations</p>
+              <p>Check-in summaries</p>
             </div>
             <div className="messages">
               {patientSafetyThreads.map((msg) => (
                 <div className="message-box" key={msg.id}>
-                  <img src={msg.avatar} alt="" />
                   <div className="message-content">
                     <div className="message-header">
                       <div className="name">{msg.patientName}</div>
