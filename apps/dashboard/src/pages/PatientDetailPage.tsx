@@ -1,4 +1,5 @@
-import { usePatientDetail, usePatientTimeline, usePatientSymptoms, usePatientCheckins, CheckinSessionItem } from '../hooks/usePatients';
+import { usePatientDetail, usePatientTimeline, usePatientSymptoms, usePatientCheckins } from '../hooks/usePatients';
+import type { CheckinSessionItem } from '../hooks/usePatients';
 import { useState } from 'react';
 
 interface PatientDetailPageProps {
