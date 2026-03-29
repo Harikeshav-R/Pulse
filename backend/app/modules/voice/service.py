@@ -115,9 +115,8 @@ async def create_voice_room(
 
     jwt_token = token.to_jwt()
 
-    # Determine the LiveKit URL to send to the client
-    # In development, the mobile app connects directly to the LiveKit server
-    livekit_url = settings.LIVEKIT_URL
+    # Return the client-facing LiveKit URL (not the internal Docker hostname)
+    livekit_url = settings.LIVEKIT_CLIENT_URL
     logger.info(
         "Voice room ready: room=%s, livekit_url=%s, token_issued=True",
         room_name,

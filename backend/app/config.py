@@ -46,6 +46,7 @@ class Settings(BaseSettings):
 
     # ─── LiveKit ───
     LIVEKIT_URL: str = "ws://localhost:7880"
+    LIVEKIT_CLIENT_URL: str = "ws://localhost:7880"  # URL returned to mobile clients
     LIVEKIT_API_KEY: str = "devkey"
     LIVEKIT_API_SECRET: str = "devsecret"
 
