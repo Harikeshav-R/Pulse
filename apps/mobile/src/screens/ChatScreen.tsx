@@ -1,24 +1,26 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Send, Mic, User } from 'lucide-react-native';
 import { colors, spacing, rounded } from '../theme';
 import { useNavigation } from '@react-navigation/native';
+import { useCheckinStore } from '../stores/checkin.store';
 
 export default function ChatScreen() {
   const navigation = useNavigation<any>();
   const [inputText, setInputText] = useState('');
   
-  const [messages, setMessages] = useState([
-    { id: '1', role: 'ai', text: 'Hi David, how are you feeling today?', time: '08:00 AM' },
-    { id: '2', role: 'patient', text: 'Not great. I\'ve been really nauseous, worse than last time. I also have a bad headache behind my eyes.', time: '08:03 AM' },
-    { id: '3', role: 'ai', text: 'Im sorry to hear that. Can you tell me how bad the nausea feels right now on a scale of 1 to 10?', time: '08:04 AM' },
-    { id: '4', role: 'patient', text: 'About a 7', time: '08:05 AM' },
-    { id: '5', role: 'ai', text: 'Got it, 7/10 nausea. Did the nausea start today, or has it been ongoing?', time: '08:05 AM' },
-  ]);
+  const { messages, isLoading, error, startCheckin, sendMessage, sessionId } = useCheckinStore();
+
+  useEffect(() => {
+    // Only start a new check-in if one isn't active
+    if (!sessionId) {
+      startCheckin();
+    }
+  }, [sessionId, startCheckin]);
 
   const handleSend = () => {
-    if (inputText.trim()) {
-      setMessages([...messages, { id: Date.now().toString(), role: 'patient', text: inputText, time: 'Now' }]);
+    if (inputText.trim() && !isLoading) {
+      sendMessage(inputText.trim());
       setInputText('');
     }
   };
@@ -59,6 +61,16 @@ export default function ChatScreen() {
               </View>
             );
           })}
+          {isLoading && (
+            <View style={[styles.messageRow, styles.messageRowLeft]}>
+              <View style={styles.aiAvatar}>
+                <Text style={styles.aiInitial}>T</Text>
+              </View>
+              <View style={[styles.bubble, styles.bubbleAi, { paddingVertical: spacing.s }]}>
+                <ActivityIndicator size="small" color={colors.mainColor} />
+              </View>
+            </View>
+          )}
         </ScrollView>
 
         <View style={styles.inputArea}>
