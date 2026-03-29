@@ -233,13 +233,14 @@ async def entrypoint(ctx: JobContext):
     # LiveKit's event emitter requires synchronous callbacks — use create_task.
     if session_id:
 
-        @session.on("agent_speech_committed")
-        def on_agent_speech(text: str):
-            asyncio.create_task(_save_transcript_message(session_id, "ai", text))
-
-        @session.on("user_speech_committed")
-        def on_user_speech(text: str):
-            asyncio.create_task(_save_transcript_message(session_id, "patient", text))
+        @session.on("conversation_item_added")
+        def on_conversation_item(ev):
+            text = ev.item.text_content
+            if not text:
+                return
+            role = "ai" if ev.item.role == "assistant" else "patient"
+            logger.info("Transcript [%s]: %s", role, text[:80])
+            asyncio.create_task(_save_transcript_message(session_id, role, text))
 
     logger.info(
         "Starting voice agent session: room=%s, patient_id=%s",
