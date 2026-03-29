@@ -102,6 +102,27 @@ services:
     volumes:
       - ./backend:/app
 
+  # ─── LiveKit Voice Agent Worker ───
+  voice-agent:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["python", "scripts/run_voice_worker.py", "dev"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://tp_admin:tp_hackathon_2026@postgres:5432/trialpulse
+      REDIS_URL: redis://redis:6379
+      LIVEKIT_URL: ws://livekit:7880
+      LIVEKIT_API_KEY: devkey
+      LIVEKIT_API_SECRET: devsecret
+    depends_on:
+      postgres:
+        condition: service_healthy
+      livekit:
+        condition: service_started
+
   # ─── Researcher Web Dashboard ───
   dashboard:
     build:
