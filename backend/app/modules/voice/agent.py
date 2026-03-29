@@ -54,11 +54,18 @@ class VoiceCheckinAgent(Agent):
 
     def __init__(self, protocol_context: dict | None = None):
         ctx = protocol_context or {}
-        instructions = CHECKIN_SYSTEM_PROMPT.format(
+        base_instructions = CHECKIN_SYSTEM_PROMPT.format(
             therapeutic_area=ctx.get("therapeutic_area", "clinical"),
             protocol_number=ctx.get("protocol_number", ""),
             expected_side_effects=str(ctx.get("expected_side_effects", [])),
             phase="voice check-in",
+        )
+        # For voice, instruct the model to initiate the conversation
+        instructions = (
+            base_instructions
+            + "\n\nIMPORTANT: You are in a live voice call. "
+            "Start the conversation immediately by greeting the patient warmly "
+            "and asking how they are feeling today. Do not wait for the patient to speak first."
         )
         super().__init__(instructions=instructions)
         self.protocol_context = ctx
@@ -219,11 +226,8 @@ async def entrypoint(ctx: JobContext):
     )
 
     agent = VoiceCheckinAgent(protocol_context=protocol_context)
-    session = AgentSession(
-        llm=model,
-        # Let the model handle voice activity detection for turn-taking
-        turn_detection="server",
-    )
+    # RealtimeModel handles turn detection natively — no turn_detection param needed
+    session = AgentSession(llm=model)
 
     # Hook transcript persistence into session events.
     # LiveKit's event emitter requires synchronous callbacks — use create_task.
@@ -246,8 +250,8 @@ async def entrypoint(ctx: JobContext):
     await session.start(room=ctx.room, agent=agent)
     logger.info("Voice agent session active: room=%s", ctx.room.name)
 
-    # Greet the patient now that they're connected and the session is live
-    await session.generate_reply()
+    # Kick off the greeting — don't await, let the realtime stream handle it
+    session.generate_reply()
 
     # Wait for the session to end (participant disconnect), then classify
     @ctx.room.on("participant_disconnected")
