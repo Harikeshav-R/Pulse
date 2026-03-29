@@ -13,6 +13,7 @@ from langchain.tools import tool
 from app.ai.prompts.checkin_system import CHECKIN_SYSTEM_PROMPT
 from app.ai.tools.meddra_lookup import lookup_by_term
 from app.config import settings
+from app.ai.llm import get_chat_model
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ def create_checkin_agent(protocol_context: dict):
     )
 
     agent = create_agent(
-        model=settings.LLM_MODEL,
+        model=get_chat_model(),
         tools=CHECKIN_TOOLS,
         system_prompt=system_prompt,
     )
