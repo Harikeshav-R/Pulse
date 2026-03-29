@@ -12,6 +12,7 @@ into the agent session's transcript events and writing to PostgreSQL
 after the session ends.
 """
 
+import asyncio
 import json
 import logging
 import uuid
@@ -217,16 +218,17 @@ async def entrypoint(ctx: JobContext):
     agent = VoiceCheckinAgent(protocol_context=protocol_context)
     session = AgentSession(llm=model)
 
-    # Hook transcript persistence into session events
+    # Hook transcript persistence into session events.
+    # LiveKit's event emitter requires synchronous callbacks — use create_task.
     if session_id:
 
         @session.on("agent_speech_committed")
-        async def on_agent_speech(text: str):
-            await _save_transcript_message(session_id, "ai", text)
+        def on_agent_speech(text: str):
+            asyncio.create_task(_save_transcript_message(session_id, "ai", text))
 
         @session.on("user_speech_committed")
-        async def on_user_speech(text: str):
-            await _save_transcript_message(session_id, "patient", text)
+        def on_user_speech(text: str):
+            asyncio.create_task(_save_transcript_message(session_id, "patient", text))
 
     logger.info(
         "Starting voice agent session: room=%s, patient_id=%s",
@@ -239,14 +241,15 @@ async def entrypoint(ctx: JobContext):
 
     # Wait for the session to end (participant disconnect), then classify
     @ctx.room.on("participant_disconnected")
-    async def on_participant_left(participant):
-        # Only classify when the patient leaves (not the agent itself)
+    def on_participant_left(participant):
         if participant.identity.startswith("patient-") and session_id and patient_id:
             logger.info(
                 "Patient disconnected, running classification: session=%s",
                 session_id,
             )
-            await _classify_and_store(session_id, patient_id, protocol_context)
+            asyncio.create_task(
+                _classify_and_store(session_id, patient_id, protocol_context)
+            )
 
 
 def run_voice_worker():
