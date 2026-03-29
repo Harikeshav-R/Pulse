@@ -9,14 +9,22 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@react-navigation/bottom-tabs": "^7.15.9",
+    "@react-navigation/native": "^7.2.2",
+    "@react-navigation/native-stack": "^7.14.10",
     "expo": "55.0.10-canary-20260328-2049187",
     "expo-status-bar": "55.0.5-canary-20260328-2049187",
+    "lucide-react-native": "^1.7.0",
     "react": "19.2.0",
-    "react-native": "0.83.4"
+    "react-native": "0.83.4",
+    "react-native-safe-area-context": "~5.6.2",
+    "react-native-screens": "~4.23.0",
+    "react-native-svg": "15.15.3"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "packageManager": "pnpm@10.33.0+sha512.10568bb4a6afb58c9eb3630da90cc9516417abebd3fabbe6739f0ae795728da1491e9db5a544c76ad8eb7570f5c4bb3d6c637b2cb41bfdcdb47fa823c8649319"
 }

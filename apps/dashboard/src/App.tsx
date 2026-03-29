@@ -211,7 +211,7 @@ function App() {
     <div className={`app-container ${darkMode ? 'dark' : ''}`}>
       <div className="app-header">
         <div className="app-header-left">
-          <span className="app-icon" />
+          <img src="/favicon.svg" alt="" className="app-header-logo" width={28} height={28} />
           <p className="app-name">Pulse</p>
           <div className="search-wrapper">
             <input
