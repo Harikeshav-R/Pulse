@@ -98,7 +98,7 @@ const clinicalTrialCards: ClinicalTrialCard[] = [
     progressColor: '#15803d',
     cardColor: '#dcfce7',
     siteTeamAvatars: [
-      'https://images.unsplash.com/photo-1542204625-de293a2f7a5c?auto=format&fit=crop&w=200&q=80',
+      'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80',
       'https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=200&q=80',
     ],
     trialStatusBadge: 'On track',
