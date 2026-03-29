@@ -47,3 +47,26 @@ class PatientWearableDataResponse(BaseModel):
     data_points: list[DataPoint]
     baseline: Optional[BaselineData] = None
     anomalies: list[dict]
+
+
+class CheckinMessageItem(BaseModel):
+    id: str
+    role: str
+    content: str
+    message_type: str
+    created_at: datetime
+
+
+class CheckinSessionItem(BaseModel):
+    session_id: str
+    modality: str
+    status: str
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    duration_seconds: Optional[int] = None
+    messages: list[CheckinMessageItem]
+
+
+class PatientCheckinsResponse(BaseModel):
+    sessions: list[CheckinSessionItem]
+    total: int

@@ -8,12 +8,15 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.alert import Alert, RiskScore
-from app.models.checkin import CheckinSession
+from app.models.checkin import CheckinMessage, CheckinSession
 from app.models.patient import Patient
 from app.models.symptom import SymptomEntry
 from app.models.trial import Site
 from app.models.wearable import WearableConnection, WearableReading, WearableAnomaly
 from app.schemas.dashboard import (
+    CheckinMessageItem,
+    CheckinSessionItem,
+    PatientCheckinsResponse,
     PatientListResponse,
     PatientListItem,
     PatientWearableDataResponse,
@@ -500,3 +503,51 @@ async def get_patient_timeline(patient_id: str, db: AsyncSession) -> PatientTime
 
     events.sort(key=lambda x: x.timestamp, reverse=True)
     return PatientTimelineResponse(events=events)
+
+
+async def get_patient_checkins(patient_id: str, db: AsyncSession) -> PatientCheckinsResponse:
+    """Get all check-in sessions for a patient with their transcript messages."""
+    pid = uuid.UUID(patient_id)
+    logger.info("Fetching check-in sessions for patient: %s", patient_id)
+
+    sessions = (
+        await db.execute(
+            select(CheckinSession)
+            .where(CheckinSession.patient_id == pid)
+            .order_by(CheckinSession.started_at.desc())
+        )
+    ).scalars().all()
+
+    result = []
+    for session in sessions:
+        messages = (
+            await db.execute(
+                select(CheckinMessage)
+                .where(CheckinMessage.session_id == session.id)
+                .order_by(CheckinMessage.sequence_number.asc())
+            )
+        ).scalars().all()
+
+        result.append(
+            CheckinSessionItem(
+                session_id=str(session.id),
+                modality=session.modality,
+                status=session.status,
+                started_at=session.started_at,
+                completed_at=session.completed_at,
+                duration_seconds=session.duration_seconds,
+                messages=[
+                    CheckinMessageItem(
+                        id=str(m.id),
+                        role=m.role,
+                        content=m.content,
+                        message_type=m.message_type,
+                        created_at=m.created_at,
+                    )
+                    for m in messages
+                ],
+            )
+        )
+
+    logger.info("Found %d check-in sessions for patient %s", len(result), patient_id)
+    return PatientCheckinsResponse(sessions=result, total=len(result))

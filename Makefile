@@ -1,4 +1,4 @@
-.PHONY: help up down test lint seed
+.PHONY: help up down test lint seed voice-worker
 
 help:
 	@echo "TrialPulse Makefile Commands:"
@@ -24,3 +24,6 @@ lint:
 seed:
 	cd backend && uv run python scripts/seed_demo_data.py
 	cd backend && uv run python scripts/generate_wearable_data.py
+
+voice-worker:
+	cd backend && uv run python scripts/run_voice_worker.py dev

@@ -38,6 +38,29 @@ export interface PatientWearableDataResponse {
   anomalies: unknown[];
 }
 
+export interface CheckinMessageItem {
+  id: string;
+  role: string;
+  content: string;
+  message_type: string;
+  created_at: string;
+}
+
+export interface CheckinSessionItem {
+  session_id: string;
+  modality: string;
+  status: string;
+  started_at?: string;
+  completed_at?: string;
+  duration_seconds?: number;
+  messages: CheckinMessageItem[];
+}
+
+export interface PatientCheckinsResponse {
+  sessions: CheckinSessionItem[];
+  total: number;
+}
+
 export interface Symptom {
   id: string;
   symptom_text: string;
@@ -105,6 +128,17 @@ export const usePatientWearable = (patientId: string, metric: string = 'heart_ra
         params: { metric, days },
       });
       return response as unknown as PatientWearableDataResponse;
+    },
+    enabled: !!patientId,
+  });
+};
+
+export const usePatientCheckins = (patientId: string) => {
+  return useQuery({
+    queryKey: ['patientCheckins', patientId],
+    queryFn: async (): Promise<PatientCheckinsResponse> => {
+      const response = await apiClient.get(`/dashboard/patients/${patientId}/checkins`);
+      return response as unknown as PatientCheckinsResponse;
     },
     enabled: !!patientId,
   });
