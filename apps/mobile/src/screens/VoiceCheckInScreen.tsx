@@ -1,67 +1,154 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Animated } from 'react-native';
-import { X, Mic, MicOff, Volume2 } from 'lucide-react-native';
+import React, { useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
+import { X, Mic, MicOff } from 'lucide-react-native';
+import { Room, RoomEvent, Track } from 'livekit-client';
+import { AudioSession } from '@livekit/react-native';
 import { colors, spacing, rounded } from '../theme';
 import { useNavigation } from '@react-navigation/native';
+import { useVoiceStore } from '../stores/voice.store';
+import VoiceAgentAvatar from '../components/VoiceAgentAvatar';
+import LiveTranscript from '../components/LiveTranscript';
 
 export default function VoiceCheckInScreen() {
   const navigation = useNavigation<any>();
-  const [isMuted, setIsMuted] = useState(false);
-  const [pulseAnim] = useState(new Animated.Value(1));
+  const room = useRef<Room | null>(null);
+  const {
+    isConnected,
+    isMuted,
+    agentState,
+    transcript,
+    error,
+    startSession,
+    setConnected,
+    setAgentState,
+    toggleMute,
+    addTranscriptEntry,
+    endSession,
+    setError,
+  } = useVoiceStore();
 
-  // Auto pulse animation to simulate agent speaking/listening
+  const handleEnd = useCallback(() => {
+    room.current?.disconnect();
+    endSession();
+    navigation.goBack();
+  }, [endSession, navigation]);
+
+  const handleToggleMute = useCallback(() => {
+    const localParticipant = room.current?.localParticipant;
+    if (localParticipant) {
+      localParticipant.setMicrophoneEnabled(isMuted); // isMuted is current state, so enable if muted
+    }
+    toggleMute();
+  }, [isMuted, toggleMute]);
+
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.2,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [pulseAnim]);
+    let mounted = true;
+
+    async function connect() {
+      try {
+        await AudioSession.startAudioSession();
+
+        const session = await startSession();
+        if (!mounted) return;
+
+        const newRoom = new Room();
+        room.current = newRoom;
+
+        // Detect agent audio track (agent started speaking)
+        newRoom.on(RoomEvent.TrackSubscribed, (track, _pub, participant) => {
+          if (track.kind === Track.Kind.Audio && participant.identity === 'checkin-agent') {
+            setAgentState('speaking');
+          }
+        });
+
+        newRoom.on(RoomEvent.TrackUnsubscribed, (track, _pub, participant) => {
+          if (track.kind === Track.Kind.Audio && participant.identity === 'checkin-agent') {
+            setAgentState('listening');
+          }
+        });
+
+        // Transcript data from agent via data channel
+        newRoom.on(RoomEvent.DataReceived, (payload, participant) => {
+          try {
+            const data = JSON.parse(new TextDecoder().decode(payload));
+            if (data.type === 'transcript' && data.text) {
+              const role = participant?.identity === 'checkin-agent' ? 'ai' : 'patient';
+              addTranscriptEntry(role as 'ai' | 'patient', data.text);
+            }
+          } catch {
+            // Ignore non-JSON data
+          }
+        });
+
+        // Track agent speaking state via active speaker changes
+        newRoom.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+          const agentSpeaking = speakers.some((s) => s.identity === 'checkin-agent');
+          setAgentState(agentSpeaking ? 'speaking' : 'listening');
+        });
+
+        newRoom.on(RoomEvent.Disconnected, () => {
+          if (mounted) setConnected(false);
+        });
+
+        await newRoom.connect(session.livekitUrl, session.token);
+        if (!mounted) {
+          newRoom.disconnect();
+          return;
+        }
+
+        await newRoom.localParticipant.setMicrophoneEnabled(true);
+        setConnected(true);
+      } catch (err: any) {
+        if (mounted) {
+          console.error('Voice connection error:', err);
+          setError(err.message || 'Failed to connect to voice session');
+        }
+      }
+    }
+
+    connect();
+
+    return () => {
+      mounted = false;
+      room.current?.disconnect();
+      AudioSession.stopAudioSession();
+      endSession();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        
-        {/* Header Options */}
+        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+          <TouchableOpacity onPress={handleEnd} style={styles.iconBtn}>
             <X color={colors.surfaceBg} size={28} />
           </TouchableOpacity>
         </View>
 
         {/* Central Avatar */}
         <View style={styles.centerStage}>
-          <Text style={styles.statusText}>Agent is listening...</Text>
-          <Animated.View style={[styles.avatarRing, { transform: [{ scale: pulseAnim }] }]}>
-            <View style={styles.avatarInner}>
-              <Volume2 color={colors.surfaceBg} size={48} />
-            </View>
-          </Animated.View>
+          <VoiceAgentAvatar agentState={agentState} />
         </View>
 
-        {/* Live Transcript area */}
+        {/* Error display */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
+        {/* Live Transcript */}
         <View style={styles.transcriptArea}>
-          <Text style={styles.speakerAi}>TrialPulse AI:</Text>
-          <Text style={styles.transcriptAi}>Hi David, how are you feeling today?</Text>
-          
-          <Text style={styles.speakerPatient}>You (Speaking...)</Text>
-          <Text style={styles.transcriptPatient}>Not feeling great, I've had some nausea...</Text>
+          <LiveTranscript entries={transcript} />
         </View>
 
         {/* Bottom Controls */}
         <View style={styles.controls}>
-          <TouchableOpacity 
-            style={[styles.micBtn, isMuted && styles.micBtnMuted]} 
-            onPress={() => setIsMuted(!isMuted)}
+          <TouchableOpacity
+            style={[styles.micBtn, isMuted && styles.micBtnMuted]}
+            onPress={handleToggleMute}
+            disabled={!isConnected}
           >
             {isMuted ? (
               <MicOff color={colors.surfaceBg} size={32} />
@@ -69,51 +156,34 @@ export default function VoiceCheckInScreen() {
               <Mic color={colors.surfaceBg} size={32} />
             )}
           </TouchableOpacity>
-          <Text style={styles.muteText}>{isMuted ? 'Muted' : 'Mute'}</Text>
+          <Text style={styles.muteText}>{isMuted ? 'Unmute' : 'Mute'}</Text>
 
-          <TouchableOpacity 
-            style={styles.endCallBtn} 
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity style={styles.endCallBtn} onPress={handleEnd}>
             <Text style={styles.endCallText}>End Check-in</Text>
           </TouchableOpacity>
         </View>
-
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.mainColor }, // Dark background for voice
+  safeArea: { flex: 1, backgroundColor: colors.mainColor },
   container: { flex: 1, padding: spacing.m },
   header: { alignItems: 'flex-end', paddingTop: spacing.s },
   iconBtn: { padding: spacing.xs },
-  
-  centerStage: { flex: 2, justifyContent: 'center', alignItems: 'center' },
-  statusText: { color: colors.secondaryColor, fontSize: 16, marginBottom: spacing.xl },
-  avatarRing: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(37, 99, 235, 0.2)', // info + opacity
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarInner: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: colors.info,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
 
-  transcriptArea: { flex: 1, justifyContent: 'flex-end', marginBottom: spacing.xl },
-  speakerAi: { color: colors.info, fontSize: 14, fontWeight: '700', marginBottom: 4 },
-  transcriptAi: { color: colors.surfaceBg, fontSize: 18, marginBottom: spacing.l },
-  speakerPatient: { color: colors.mutedBorder, fontSize: 14, fontWeight: '700', marginBottom: 4 },
-  transcriptPatient: { color: colors.surfaceBg, fontSize: 22, fontWeight: '600' },
+  centerStage: { flex: 2, justifyContent: 'center', alignItems: 'center' },
+
+  errorContainer: {
+    backgroundColor: 'rgba(225, 29, 72, 0.15)',
+    padding: spacing.m,
+    borderRadius: rounded.m,
+    marginBottom: spacing.m,
+  },
+  errorText: { color: colors.danger, fontSize: 14, textAlign: 'center' },
+
+  transcriptArea: { flex: 1, marginBottom: spacing.m },
 
   controls: { alignItems: 'center', paddingBottom: spacing.xl },
   micBtn: {
@@ -128,7 +198,7 @@ const styles = StyleSheet.create({
   },
   micBtnMuted: { backgroundColor: colors.danger, borderColor: colors.danger },
   muteText: { color: colors.surfaceBg, marginTop: spacing.s, fontSize: 14 },
-  
+
   endCallBtn: {
     marginTop: spacing.xl,
     backgroundColor: colors.danger,
