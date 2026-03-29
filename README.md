@@ -99,7 +99,6 @@ A real-time interface for clinical teams to manage safety workflows.
 ## Data Flow: Symptom Reporting to Dashboard
 
 ```mermaid
-sequence_label "Patient Check-in Flow"
 sequenceDiagram
     participant P as Patient (Mobile)
     participant A as AI Agent (LangGraph)
