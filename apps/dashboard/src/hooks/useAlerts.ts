@@ -13,15 +13,16 @@ export interface Alert {
   created_at: string;
 }
 
-export const useAlerts = (status?: string, severity?: string, page = 1) => {
+export const useAlerts = (trialId: string, status?: string, severity?: string, page = 1) => {
   return useQuery({
-    queryKey: ['alerts', status, severity, page],
+    queryKey: ['alerts', trialId, status, severity, page],
     queryFn: async (): Promise<{ alerts: Alert[]; total: number }> => {
       const response = await apiClient.get('/dashboard/alerts', {
-        params: { status, severity, page },
+        params: { trial_id: trialId, status, severity, page },
       });
       return response as unknown as { alerts: Alert[]; total: number };
     },
+    enabled: !!trialId,
   });
 };
 

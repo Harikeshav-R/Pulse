@@ -1,7 +1,11 @@
 import { useAlerts, useUpdateAlert } from '../hooks/useAlerts';
 
-export function AlertQueuePage() {
-  const { data, isLoading, isError } = useAlerts('open');
+interface AlertQueuePageProps {
+  trialId: string;
+}
+
+export function AlertQueuePage({ trialId }: AlertQueuePageProps) {
+  const { data, isLoading, isError } = useAlerts(trialId, 'open');
   const updateAlert = useUpdateAlert();
 
   if (isLoading) return <div style={{ padding: 20 }}>Loading alerts...</div>;

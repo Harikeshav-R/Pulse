@@ -337,7 +337,7 @@ function App() {
               onSelectPatient={(id) => setSelectedPatientId(id)} 
             />
           ) : activeTab === 'alerts' ? (
-            <AlertQueuePage />
+            <AlertQueuePage trialId={selectedTrialId || 'a1b2c3d4-0000-4000-8000-000000000001'} />
           ) : activeTab === 'analytics' ? (
             <CohortAnalytics
               trialId={selectedTrialId}
