@@ -5,8 +5,14 @@ The worker connects to the LiveKit server and dispatches voice
 check-in agents to rooms as patients join.
 
 Usage:
-    uv run python scripts/run_voice_worker.py dev
+    cd backend && uv run python scripts/run_voice_worker.py dev
 """
+
+import sys
+from pathlib import Path
+
+# Ensure the backend root is on sys.path so `app` is importable
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.modules.voice.agent import run_voice_worker
 
