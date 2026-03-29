@@ -11,11 +11,13 @@ from app.modules.dashboard.service import (
     get_patient_detail,
     get_patient_list,
     get_patient_symptoms,
+    get_patient_checkins,
     review_symptom,
     get_patient_wearable_summary,
     get_patient_timeline,
 )
 from app.schemas.dashboard import (
+    PatientCheckinsResponse,
     PatientListResponse,
     PatientWearableDataResponse,
     PatientTimelineResponse,
@@ -96,6 +98,16 @@ async def patient_wearable_summary(
 ):
     """Get aggregated wearable data for a given metric and timeframe."""
     return await get_patient_wearable_summary(patient_id, metric, days, db)
+
+
+@router.get("/dashboard/patients/{patient_id}/checkins", response_model=PatientCheckinsResponse)
+async def patient_checkins(
+    patient_id: str,
+    staff: dict = Depends(get_current_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all check-in sessions for a patient with transcript messages."""
+    return await get_patient_checkins(patient_id, db)
 
 
 @router.get("/dashboard/patients/{patient_id}/timeline", response_model=PatientTimelineResponse)
