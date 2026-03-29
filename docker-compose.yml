@@ -2,6 +2,7 @@ services:
   # ─── Databases ───
   postgres:
     image: postgres:16
+    restart: unless-stopped
     environment:
       POSTGRES_DB: trialpulse
       POSTGRES_USER: tp_admin
@@ -15,19 +16,25 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tp_admin -d trialpulse"]
       interval: 5s
+      timeout: 5s
       retries: 5
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
       - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
+      timeout: 5s
       retries: 5
+      start_period: 5s
 
   minio:
     image: minio/minio:latest
+    restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: trialpulse
@@ -37,10 +44,17 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # ─── LiveKit Server (self-hosted) ───
   livekit:
     image: livekit/livekit-server:latest
+    restart: unless-stopped
     command: --config /etc/livekit.yaml
     volumes:
       - ./infra/livekit.yaml:/etc/livekit.yaml
@@ -49,13 +63,15 @@ services:
       - "7881:7881"
       - "7882:7882/udp"
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
 
   # ─── Python FastAPI Backend ───
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -70,6 +86,12 @@ services:
       ENVIRONMENT: development
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     depends_on:
       postgres:
         condition: service_healthy
@@ -80,15 +102,49 @@ services:
     volumes:
       - ./backend:/app
 
+  # ─── Researcher Web Dashboard ───
+  dashboard:
+    build:
+      context: ./apps/dashboard
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      # Tell Vite proxy to route /api requests to the backend container
+      VITE_BACKEND_URL: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      # Mount the code for live-reloading during development
+      - ./apps/dashboard:/app
+      # Exclude node_modules to use the container's version
+      - /app/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5173"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   # ─── Nginx Reverse Proxy ───
   nginx:
     image: nginx:alpine
+    restart: unless-stopped
     volumes:
       - ./infra/nginx.dev.conf:/etc/nginx/nginx.conf:ro
     ports:
       - "8080:8080"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   pgdata:

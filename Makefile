@@ -5,7 +5,7 @@ help:
 	@echo "  make up      - Start the full dockerized stack in the background"
 	@echo "  make down    - Stop the dockerized stack"
 	@echo "  make test    - Run backend pytest suite"
-	@echo "  make lint    - Run ruff linter on the backend"
+	@echo "  make lint    - Run linters on the backend and frontend"
 	@echo "  make seed    - Seed the database with demo data"
 
 up:
@@ -19,6 +19,7 @@ test:
 
 lint:
 	cd backend && uv run ruff check .
+	cd apps/dashboard && pnpm run lint && pnpm tsc -b
 
 seed:
 	cd backend && uv run python scripts/seed_demo_data.py
