@@ -16,6 +16,7 @@ from app.ai.prompts.classifier_system import CLASSIFIER_SYSTEM_PROMPT
 from app.ai.schemas import ClassificationResult
 from app.ai.tools.meddra_lookup import lookup_by_code
 from app.config import settings
+from app.ai.llm import get_chat_model
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ async def extract_node(state: ClassifierState) -> dict:
     )
 
     agent = create_agent(
-        model=settings.LLM_MODEL,
+        model=get_chat_model(),
         tools=[validate_meddra_code],
         system_prompt=system_prompt,
         response_format=ToolStrategy(

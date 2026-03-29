@@ -13,13 +13,14 @@ from typing import Annotated, Literal
 
 from langchain.agents import create_agent
 from langchain.tools import tool
-from langgraph.graph import StateGraph
+from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
 from app.ai.prompts.checkin_system import CHECKIN_SYSTEM_PROMPT
 from app.ai.tools.meddra_lookup import lookup_by_term
 from app.config import settings
+from app.ai.llm import get_chat_model
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +140,7 @@ async def conversation_node(state: CheckinState) -> dict:
     system_prompt = _build_system_prompt(ctx) + f"\n\nCURRENT PHASE: {phase}\nINSTRUCTION: {phase_instruction}"
 
     agent = create_agent(
-        model=settings.LLM_MODEL,
+        model=get_chat_model(),
         tools=CHECKIN_TOOLS,
         system_prompt=system_prompt,
     )
@@ -197,28 +198,20 @@ async def conversation_node(state: CheckinState) -> dict:
     }
 
 
-def should_continue(state: CheckinState) -> Literal["conversation", "__end__"]:
-    """Route: continue conversing or end the graph."""
-    if state.get("session_complete"):
-        return "__end__"
-    return "conversation"
-
-
 # ─── Graph builder ───
 
 
 def build_checkin_graph():
     """Build and compile the check-in LangGraph.
 
-    Single-node graph that loops the conversation agent until the
-    session is complete. The agent manages phase transitions internally
-    via tool calls.
+    Single-node graph that executes one conversational turn. State persistence
+    is managed externally by the database rather than LangGraph's checkpointer.
     """
     graph = StateGraph(CheckinState)
 
     graph.add_node("conversation", conversation_node)
     graph.set_entry_point("conversation")
-    graph.add_conditional_edges("conversation", should_continue)
+    graph.add_edge("conversation", END)
 
     compiled = graph.compile()
     logger.info("Check-in LangGraph compiled")

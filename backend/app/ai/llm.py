@@ -9,7 +9,7 @@ for direct model access when needed.
 
 import logging
 
-from langchain.chat_models import init_chat_model
+from langchain_openai import ChatOpenAI
 
 from app.config import settings
 
@@ -24,10 +24,14 @@ def get_chat_model(temperature: float = 0.7, max_tokens: int = 1024):
     """
     logger.debug("Creating chat model: model=%s, temp=%.1f", settings.LLM_MODEL, temperature)
 
-    return init_chat_model(
+    return ChatOpenAI(
         model=settings.LLM_MODEL,
-        model_provider="openrouter",
         api_key=settings.OPENROUTER_API_KEY,
+        base_url="https://openrouter.ai/api/v1",
         temperature=temperature,
         max_tokens=max_tokens,
+        default_headers={
+            "HTTP-Referer": "http://localhost:8000",
+            "X-Title": "TrialPulse Chat"
+        }
     )
