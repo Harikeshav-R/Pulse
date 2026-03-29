@@ -201,6 +201,10 @@ async def entrypoint(ctx: JobContext):
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
     logger.info("Connected to room: %s", ctx.room.name)
 
+    # Wait for the patient to actually join the room before starting
+    participant = await ctx.wait_for_participant()
+    logger.info("Patient joined room: %s, identity=%s", ctx.room.name, participant.identity)
+
     # Parse patient/protocol context from room metadata
     meta = _parse_room_metadata(ctx)
     protocol_context = meta.get("protocol_context", {})
@@ -210,14 +214,16 @@ async def entrypoint(ctx: JobContext):
     # Create Gemini Live realtime model — native audio-to-audio
     model = google.beta.realtime.RealtimeModel(
         model="gemini-2.5-flash-native-audio-preview-12-2025",
-        # model="gemini-2.0-flash-exp",
-        # voice="Puck",
         temperature=0.7,
         api_key=settings.GOOGLE_API_KEY,
     )
 
     agent = VoiceCheckinAgent(protocol_context=protocol_context)
-    session = AgentSession(llm=model)
+    session = AgentSession(
+        llm=model,
+        # Let the model handle voice activity detection for turn-taking
+        turn_detection="server",
+    )
 
     # Hook transcript persistence into session events.
     # LiveKit's event emitter requires synchronous callbacks — use create_task.
@@ -240,7 +246,7 @@ async def entrypoint(ctx: JobContext):
     await session.start(room=ctx.room, agent=agent)
     logger.info("Voice agent session active: room=%s", ctx.room.name)
 
-    # Prompt the agent to greet the patient first
+    # Greet the patient now that they're connected and the session is live
     await session.generate_reply()
 
     # Wait for the session to end (participant disconnect), then classify
