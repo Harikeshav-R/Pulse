@@ -16,11 +16,11 @@ export interface Alert {
 export const useAlerts = (trialId: string, status?: string, severity?: string, page = 1) => {
   return useQuery({
     queryKey: ['alerts', trialId, status, severity, page],
-    queryFn: async (): Promise<{ alerts: Alert[]; total: number }> => {
+    queryFn: async (): Promise<Alert[]> => {
       const response = await apiClient.get('/dashboard/alerts', {
         params: { trial_id: trialId, status, severity, page },
       });
-      return response as unknown as { alerts: Alert[]; total: number };
+      return response as unknown as Alert[];
     },
     enabled: !!trialId,
   });

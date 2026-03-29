@@ -25,11 +25,11 @@ export function AlertQueuePage({ trialId }: AlertQueuePageProps) {
         <p>Alert Queue</p>
       </div>
 
-      {!data || data.alerts.length === 0 ? (
+      {!data || data.length === 0 ? (
         <p>No open alerts.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
-          {data.alerts.map((alert) => (
+          {data.map((alert) => (
             <div key={alert.id} style={{ 
               padding: 15, 
               borderLeft: `4px solid ${alert.severity === 'critical' ? '#ef4444' : alert.severity === 'high' ? '#f97316' : '#facc15'}`,
