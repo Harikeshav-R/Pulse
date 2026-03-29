@@ -250,9 +250,6 @@ async def entrypoint(ctx: JobContext):
     await session.start(room=ctx.room, agent=agent)
     logger.info("Voice agent session active: room=%s", ctx.room.name)
 
-    # Kick off the greeting — don't await, let the realtime stream handle it
-    session.generate_reply()
-
     # Wait for the session to end (participant disconnect), then classify
     @ctx.room.on("participant_disconnected")
     def on_participant_left(participant):
